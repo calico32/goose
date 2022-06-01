@@ -1,0 +1,9 @@
+{
+  "makefile.extensionOutputFolder": "./.vscode",
+  "editor.links": false,
+  "go.toolsEnvVars": {
+    "GOOS": "js",
+    "GOARCH": "wasm"
+  },
+  "yaml.schemas": {}
+}

@@ -1,0 +1,40 @@
+{
+  "name": "goose",
+  "displayName": "gooselang",
+  "description": "",
+  "version": "0.0.1",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.67.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "goose",
+        "aliases": [
+          "Goose",
+          "goose"
+        ],
+        "extensions": [
+          ".goose",
+          ".goos"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "goose",
+        "scopeName": "source.goose",
+        "path": "./syntaxes/goose.tmLanguage.json"
+      }
+    ]
+  }
+}
