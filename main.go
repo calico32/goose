@@ -1,0 +1,54 @@
+package goose
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/wiisportsresort/goose/interpreter"
+	"github.com/wiisportsresort/goose/parser"
+	"github.com/wiisportsresort/goose/token"
+)
+
+func Run(path string) (exitCode int, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("Goose panicked: %v", r)
+			exitCode = -1
+		}
+	}()
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, path, nil, nil)
+	if err != nil {
+		return -1, err
+	}
+
+	exitCode, err = interpreter.RunFile(f, fset, false, false, os.Stdout, os.Stderr)
+	if err != nil {
+		return -1, err
+	}
+
+	return
+}
+
+func RunCode(source string) (exitCode int, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("Goose panicked: %v", r)
+			exitCode = -1
+		}
+	}()
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "goose.RunCode", source, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	exitCode, err = interpreter.RunFile(f, fset, false, false, os.Stdout, os.Stderr)
+	if err != nil {
+		panic(err)
+	}
+
+	return
+}
