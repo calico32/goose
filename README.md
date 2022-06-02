@@ -48,16 +48,16 @@ go install cli/goose.go
 
 # Roadmap
 
-[ ] speed up loops with many iterations
-[ ] add composite types
-[ ] add anonymous functions
-[ ] explicit type annotations
-[ ] type casting
+- [ ] speed up loops with many iterations
+- [ ] add composite types
+- [ ] add anonymous functions
+- [ ] explicit type annotations
+- [ ] type casting
 
 ## Less urgent
 
-[ ] module system, imports/exports
-[ ] implement compiler
+- [ ] module system, imports/exports
+- [ ] implement compiler
 
 # Language description
 
@@ -124,6 +124,7 @@ The following escapes can be used in a string:
 | Escape       | Character                   |
 | ------------ | --------------------------- |
 | `\"`         | U+0022 double quote         |
+| `\$`         | U+0024 dollar sign          |
 | `\\`         | U+005C backslash            |
 | `\a`         | U+0007 alert                |
 | `\b`         | U+0008 backslash            |
@@ -145,6 +146,7 @@ let z = x + y
 "x squared is ${x ** 2}"
 "$x + $y = $z"
 "the $yth power of $x is ${x ** y}" // $yth is invalid, use ${y}th instead
+"\$19.99" // escaped $s
 ```
 
 ## Arrays
