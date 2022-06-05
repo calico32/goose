@@ -61,14 +61,27 @@ func typeOf(value any) GooseType {
 	}
 }
 
-func toInt[T int | int64](value any) T {
+func toInt(value any) int {
 	switch value := value.(type) {
 	case *GooseValue:
-		return toInt[T](value.Value)
+		return toInt(value.Value)
 	case int64:
-		return T(value)
+		return int(value)
 	case float64:
-		return T(value)
+		return int(value)
+	default:
+		panic(fmt.Errorf("Unexpected type %T in toInt()", value))
+	}
+}
+
+func toInt64(value any) int64 {
+	switch value := value.(type) {
+	case *GooseValue:
+		return toInt64(value.Value)
+	case int64:
+		return int64(value)
+	case float64:
+		return int64(value)
 	default:
 		panic(fmt.Errorf("Unexpected type %T in toInt()", value))
 	}
@@ -114,30 +127,96 @@ func isPowerOfTwo(v int) bool {
 	return v != 0 && (v&(v-1)) == 0
 }
 
-func numericOp[T int64 | float64](lhs T, op token.Token, rhs T) any {
-	switch op {
-	case token.Lt:
-		return lhs < rhs
-	case token.Lte:
-		return lhs <= rhs
-	case token.Gt:
-		return lhs > rhs
-	case token.Gte:
-		return lhs >= rhs
-	case token.Add, token.AddAssign, token.Inc:
-		return lhs + rhs
-	case token.Sub, token.SubAssign, token.Dec:
-		return lhs - rhs
-	case token.Mul, token.MulAssign:
-		return lhs * rhs
-	case token.Quo, token.QuoAssign:
-		return lhs / rhs
-	case token.Rem, token.RemAssign:
-		return T(int64(lhs) % int64(rhs))
-	case token.Pow, token.PowAssign:
-		return T(math.Pow(float64(lhs), float64(rhs)))
+var numericOpIntOutputType = map[token.Token]GooseType{
+	token.Add:       GooseTypeInt,
+	token.AddAssign: GooseTypeInt,
+	token.Sub:       GooseTypeInt,
+	token.SubAssign: GooseTypeInt,
+	token.Mul:       GooseTypeInt,
+	token.MulAssign: GooseTypeInt,
+	token.Quo:       GooseTypeFloat,
+	token.QuoAssign: GooseTypeFloat,
+	token.Pow:       GooseTypeFloat,
+	token.PowAssign: GooseTypeFloat,
+	token.Rem:       GooseTypeInt,
+	token.RemAssign: GooseTypeInt,
+}
+
+func numericOp(lhs any, op token.Token, rhs any) any {
+	bothInts := true
+	switch lhs.(type) {
+	case int64:
+	case float64:
+		bothInts = false
 	default:
-		panic(fmt.Errorf("Unexpected operator %s", op))
+		panic(fmt.Errorf("Unexpected lhs type %T in numericOpInt()", lhs))
+	}
+	switch rhs.(type) {
+	case int64:
+	case float64:
+		bothInts = false
+	default:
+		panic(fmt.Errorf("Unexpected rhs type %T in numericOpInt()", rhs))
+	}
+	outputType := GooseTypeFloat
+	if bothInts {
+		outputType = numericOpIntOutputType[op]
+	}
+
+	if outputType == GooseTypeFloat {
+		lhs := toFloat(lhs)
+		rhs := toFloat(rhs)
+		switch op {
+		case token.Lt:
+			return lhs < rhs
+		case token.Lte:
+			return lhs <= rhs
+		case token.Gt:
+			return lhs > rhs
+		case token.Gte:
+			return lhs >= rhs
+		case token.Add, token.AddAssign, token.Inc:
+			return lhs + rhs
+		case token.Sub, token.SubAssign, token.Dec:
+			return lhs - rhs
+		case token.Mul, token.MulAssign:
+			return lhs * rhs
+		case token.Quo, token.QuoAssign:
+			return lhs / rhs
+		case token.Rem, token.RemAssign:
+			return int64(lhs) % int64(rhs)
+		case token.Pow, token.PowAssign:
+			return math.Pow(lhs, rhs)
+		default:
+			panic(fmt.Errorf("Unexpected operator %s", op))
+		}
+	} else {
+		lhs := toInt64(lhs)
+		rhs := toInt64(rhs)
+		switch op {
+		case token.Lt:
+			return lhs < rhs
+		case token.Lte:
+			return lhs <= rhs
+		case token.Gt:
+			return lhs > rhs
+		case token.Gte:
+			return lhs >= rhs
+		case token.Add, token.AddAssign, token.Inc:
+			return lhs + rhs
+		case token.Sub, token.SubAssign, token.Dec:
+			return lhs - rhs
+		case token.Mul, token.MulAssign:
+			return lhs * rhs
+		case token.Quo, token.QuoAssign:
+			return lhs / rhs
+		case token.Rem, token.RemAssign:
+			return lhs % rhs
+		case token.Pow, token.PowAssign:
+			return math.Pow(float64(lhs), float64(rhs))
+		default:
+			panic(fmt.Errorf("Unexpected operator %s", op))
+		}
 	}
 }
 

@@ -21,12 +21,12 @@ func NewFileSet() *FileSet {
 }
 
 func (s *FileSet) Base() int {
-	defer un(lock(s))
+	defer un(lock(&s.mutex))
 	return s.base
 }
 
 func (s *FileSet) AddFile(filename string, base, size int) *File {
-	defer un(lock(s))
+	defer un(lock(&s.mutex))
 	if base < 0 {
 		base = s.base
 	}

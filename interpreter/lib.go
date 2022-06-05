@@ -24,7 +24,7 @@ func padCommon(scope *GooseScope, args []*GooseValue) (str string, pad string, e
 		return
 	}
 
-	length := toInt[int](args[1].Value)
+	length := toInt(args[1].Value)
 
 	if length < 0 {
 		err = fmt.Errorf("pad__(x, int, val): expected length >= 0")
@@ -122,7 +122,7 @@ var stdlib = map[string]GooseFunc{
 		if err != nil {
 			return nil, err
 		}
-		ms = toInt[int64](args[0].Value)
+		ms = toInt64(args[0].Value)
 		time.Sleep(time.Duration(ms * int64(time.Millisecond)))
 		return &ReturnResult{}, nil
 	},
@@ -165,7 +165,7 @@ var stdlib = map[string]GooseFunc{
 			if err != nil {
 				return nil, err
 			}
-			exitCode = toInt[int](args[0].Value)
+			exitCode = toInt(args[0].Value)
 		}
 		panic(gooseExit{exitCode})
 	},
@@ -178,7 +178,7 @@ var stdlib = map[string]GooseFunc{
 			return nil, err
 		}
 
-		return &ReturnResult{toInt[int64](args[0].Value)}, nil
+		return &ReturnResult{toInt64(args[0].Value)}, nil
 	},
 	"ceil": func(scope *GooseScope, args []*GooseValue) (*ReturnResult, error) {
 		if len(args) == 0 {

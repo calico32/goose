@@ -2,3 +2,4 @@
 *.log
 test/
 /goose
+.vscode/settings.json

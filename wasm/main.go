@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
+	"reflect"
 	"strings"
-	"syscall/js"
+	"unsafe"
 
 	"github.com/wiisportsresort/goose/interpreter"
 	"github.com/wiisportsresort/goose/parser"
@@ -11,20 +13,8 @@ import (
 	"github.com/wiisportsresort/goose/token"
 )
 
-var done chan bool
-
-func init() {
-	done = make(chan bool)
-}
-
-func main() {
-	global := js.Global()
-	global.Set("Goose", map[string]any{
-		"tokenize": js.FuncOf(tokenize),
-		"parse":    js.FuncOf(parse),
-		"execute":  js.FuncOf(execute),
-	})
-	<-done
+func onError(pos token.Position, msg string) {
+	fmt.Printf("%s: %s\n", pos, msg)
 }
 
 type Token struct {
@@ -33,25 +23,57 @@ type Token struct {
 	lit string
 }
 
-func onError(pos token.Position, msg string) {
-	fmt.Printf("%s: %s\n", pos, msg)
+// ptrToString returns a string from WebAssembly compatible numeric
+// types representing its pointer and length.
+func ptrToString(ptr uint32, size uint32) (ret string) {
+	// Here, we want to get a string represented by the ptr and size. If we
+	// wanted a []byte, we'd use reflect.SliceHeader instead.
+	strHdr := (*reflect.StringHeader)(unsafe.Pointer(&ret))
+	strHdr.Data = uintptr(ptr)
+	strHdr.Len = uintptr(size)
+	return
 }
 
-func tokenize(_ js.Value, args []js.Value) (ret any) {
-	defer func() {
-		if r := recover(); r != nil {
-			ret = fmt.Sprintf("panic: %v\n", r)
-		}
-	}()
+// stringToPtr returns a pointer and size pair for the given string
+// in a way that is compatible with WebAssembly numeric types.
+func stringToPtr(s string) (uint32, uint32) {
+	if len(s) == 0 {
+		return 0, 0
+	}
+	buf := []byte(s)
+	ptr := &buf[0]
+	unsafePtr := uintptr(unsafe.Pointer(ptr))
+	return uint32(unsafePtr), uint32(len(buf))
+}
 
-	name := args[0].String()
-	source := args[1].String()
-	sourceBytes := []byte(source)
+func ptrSize(ptr, size uint32) uint32 {
+	if ptr == 0 && size == 0 {
+		return 0
+	}
 
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint32(buf[0:4], ptr)
+	binary.LittleEndian.PutUint32(buf[4:8], size)
+
+	return uint32(uintptr(unsafe.Pointer(&buf[0])))
+}
+
+// log a message to the console using _log.
+func log(message string) {
+	ptr, size := stringToPtr(message)
+	_log(ptr, size)
+}
+
+func _log(ptr uint32, size uint32)
+
+func main() {}
+
+//export tokenize
+func tokenize(name, source string) (ret uint32) {
 	fset := token.NewFileSet()
 	f := fset.AddFile(name, fset.Base(), len(source))
 	s := scanner.Scanner{}
-	s.Init(f, sourceBytes, onError)
+	s.Init(f, []byte(source), onError)
 
 	var tokens []Token
 	for {
@@ -69,65 +91,54 @@ func tokenize(_ js.Value, args []js.Value) (ret any) {
 		fmt.Fprint(&out, "\t\t| "+t.lit+"\n")
 	}
 
-	return out.String()
+	return ptrSize(stringToPtr(out.String()))
 }
 
-func parse(_ js.Value, args []js.Value) (ret any) {
-	defer func() {
-		if r := recover(); r != nil {
-			ret = map[string]any{
-				"trace": fmt.Sprintf("panic: %v+\n", r),
-			}
-		}
-	}()
-
-	name := args[0].String()
-	source := args[1].String()
-	sourceBytes := []byte(source)
-
+//export parse
+func parse(name, source string) (ret uint32) {
 	var traceWriter strings.Builder
 
 	fset := token.NewFileSet()
-	_, err := parser.ParseFile(fset, name, sourceBytes, &traceWriter)
+	_, err := parser.ParseFile(fset, name, source, &traceWriter)
 	if err != nil {
-		panic(err)
+		return ptrSize(stringToPtr(err.Error()))
 	}
 
-	return map[string]any{
-		"trace": traceWriter.String(),
-	}
+	return ptrSize(stringToPtr(traceWriter.String()))
 }
 
-func execute(_ js.Value, args []js.Value) (ret any) {
-	defer func() {
-		if r := recover(); r != nil {
-			ret = fmt.Sprintf("panic: %v\n", r)
-		}
-	}()
-
-	name := args[0].String()
-	source := args[1].String()
-	sourceBytes := []byte(source)
-
+//export execute
+func execute(name, source string) (ret uint32) {
 	var traceWriter strings.Builder
 	var stdout strings.Builder
 	var stderr strings.Builder
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, name, sourceBytes, &traceWriter)
+	f, err := parser.ParseFile(fset, name, source, &traceWriter)
 	if err != nil {
-		panic(err)
+		return ptrSize(stringToPtr(err.Error()))
 	}
 
 	exitCode, err := interpreter.RunFile(f, fset, false, false, &stdout, &stderr)
 	if err != nil {
-		panic(err)
+		return ptrSize(stringToPtr(err.Error()))
 	}
 
-	return map[string]any{
-		"exitCode": exitCode,
-		"stdout":   stdout.String(),
-		"stderr":   stderr.String(),
-		"trace":    traceWriter.String(),
-	}
+	var j strings.Builder
+
+	stdoutPtr, stdoutSize := stringToPtr(stdout.String())
+	stderrPtr, stderrSize := stringToPtr(stderr.String())
+	tracePtr, traceSize := stringToPtr(traceWriter.String())
+
+	j.WriteString("{\"exitCode\":")
+	j.WriteString(fmt.Sprintf("%d", exitCode))
+	j.WriteString(",\"stdout\":[")
+	j.WriteString(fmt.Sprintf("%d, %d", stdoutPtr, stdoutSize))
+	j.WriteString("],\"stderr\":[")
+	j.WriteString(fmt.Sprintf("%d, %d", stderrPtr, stderrSize))
+	j.WriteString("],\"trace\":[")
+	j.WriteString(fmt.Sprintf("%d, %d", tracePtr, traceSize))
+	j.WriteString("]}")
+
+	return ptrSize(stringToPtr(j.String()))
 }

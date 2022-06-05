@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/wiisportsresort/goose/ast"
 	"github.com/wiisportsresort/goose/interpreter"
 	"github.com/wiisportsresort/goose/parser"
 	"github.com/wiisportsresort/goose/scanner"
@@ -226,7 +225,7 @@ func main() {
 		}
 
 		if gobOutput {
-			ast.InitGob()
+			// ast.InitGob()
 
 			if outw == os.Stdout {
 				fmt.Println("Cannot write gob to stdout")

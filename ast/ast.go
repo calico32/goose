@@ -1,8 +1,6 @@
 package ast
 
 import (
-	"encoding/gob"
-
 	"github.com/wiisportsresort/goose/token"
 )
 
@@ -16,49 +14,49 @@ func trimRight(s string) string {
 	return s[0:i]
 }
 
-func InitGob() {
-	gob.Register(File{})
-	gob.Register(ArrayInitializer{})
-	gob.Register(ArrayLiteral{})
-	gob.Register(AssignStmt{})
-	gob.Register(BadExpr{})
-	gob.Register(BadStmt{})
-	gob.Register(BinaryExpr{})
-	gob.Register(BranchStmt{})
-	gob.Register(CallExpr{})
-	gob.Register(Comment{})
-	gob.Register(CompositeLiteral{})
-	gob.Register(DeclStmt{})
-	gob.Register(EmptyStmt{})
-	gob.Register(ExprStmt{})
-	gob.Register(Field{})
-	gob.Register(FieldList{})
-	gob.Register(ForStmt{})
-	gob.Register(FuncStmt{})
-	gob.Register(Ident{})
-	gob.Register(IfStmt{})
-	gob.Register(IncDecStmt{})
-	gob.Register(IndexExpr{})
-	gob.Register(KeyValueExpr{})
-	gob.Register(LabeledStmt{})
-	gob.Register(Literal{})
-	gob.Register(ParenExpr{})
-	gob.Register(RepeatCountStmt{})
-	gob.Register(RepeatForeverStmt{})
-	gob.Register(RepeatWhileStmt{})
-	gob.Register(ReturnStmt{})
-	gob.Register(SelectorExpr{})
-	gob.Register(SliceExpr{})
-	gob.Register(StringLiteral{})
-	gob.Register(StringLiteralEnd{})
-	gob.Register(StringLiteralInterpExpr{})
-	gob.Register(StringLiteralInterpIdent{})
-	gob.Register(StringLiteralMiddle{})
-	gob.Register(StringLiteralStart{})
-	gob.Register(Token{})
-	gob.Register(UnaryExpr{})
-	gob.Register(ValueSpec{})
-}
+// func InitGob() {
+// 	gob.Register(File{})
+// 	gob.Register(ArrayInitializer{})
+// 	gob.Register(ArrayLiteral{})
+// 	gob.Register(AssignStmt{})
+// 	gob.Register(BadExpr{})
+// 	gob.Register(BadStmt{})
+// 	gob.Register(BinaryExpr{})
+// 	gob.Register(BranchStmt{})
+// 	gob.Register(CallExpr{})
+// 	gob.Register(Comment{})
+// 	gob.Register(CompositeLiteral{})
+// 	gob.Register(DeclStmt{})
+// 	gob.Register(EmptyStmt{})
+// 	gob.Register(ExprStmt{})
+// 	gob.Register(Field{})
+// 	gob.Register(FieldList{})
+// 	gob.Register(ForStmt{})
+// 	gob.Register(FuncStmt{})
+// 	gob.Register(Ident{})
+// 	gob.Register(IfStmt{})
+// 	gob.Register(IncDecStmt{})
+// 	gob.Register(IndexExpr{})
+// 	gob.Register(KeyValueExpr{})
+// 	gob.Register(LabeledStmt{})
+// 	gob.Register(Literal{})
+// 	gob.Register(ParenExpr{})
+// 	gob.Register(RepeatCountStmt{})
+// 	gob.Register(RepeatForeverStmt{})
+// 	gob.Register(RepeatWhileStmt{})
+// 	gob.Register(ReturnStmt{})
+// 	gob.Register(SelectorExpr{})
+// 	gob.Register(SliceExpr{})
+// 	gob.Register(StringLiteral{})
+// 	gob.Register(StringLiteralEnd{})
+// 	gob.Register(StringLiteralInterpExpr{})
+// 	gob.Register(StringLiteralInterpIdent{})
+// 	gob.Register(StringLiteralMiddle{})
+// 	gob.Register(StringLiteralStart{})
+// 	gob.Register(Token{})
+// 	gob.Register(UnaryExpr{})
+// 	gob.Register(ValueSpec{})
+// }
 
 type Token struct {
 	Type   token.Token
@@ -486,7 +484,7 @@ type (
 )
 
 func (s *BadStmt) Pos() token.Pos           { return s.From }
-func (s *EmptyStmt) Pos() token.Pos         { return 99999999999999999 }
+func (s *EmptyStmt) Pos() token.Pos         { return 9999999 }
 func (s *LabeledStmt) Pos() token.Pos       { return s.Label.Pos() }
 func (s *ExprStmt) Pos() token.Pos          { return s.X.Pos() }
 func (s *FuncStmt) Pos() token.Pos          { return s.Func }

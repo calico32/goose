@@ -21,13 +21,13 @@ type File struct {
 
 func (s *File) Mutex() *sync.Mutex { return &s.mutex }
 
-func un[T Lockable](f T) {
-	f.Mutex().Unlock()
+func un(mutex *sync.Mutex) {
+	mutex.Unlock()
 }
 
-func lock[T Lockable](f T) T {
-	f.Mutex().Lock()
-	return f
+func lock(mutex *sync.Mutex) *sync.Mutex {
+	mutex.Lock()
+	return mutex
 }
 
 // Name returns the file name of file f as registered with AddFile.
@@ -80,12 +80,12 @@ func (f *File) SetLinesForContent(content []byte) {
 		}
 	}
 
-	defer un(lock(f))
+	defer un(lock(&f.mutex))
 	f.lines = lines
 }
 
 func (f *File) AddLine(offset int) {
-	defer un(lock(f))
+	defer un(lock(&f.mutex))
 
 	numLines := len(f.lines)
 
@@ -100,7 +100,7 @@ func (f *File) AddLine(offset int) {
 }
 
 func (f *File) LineCount() int {
-	defer un(lock(f))
+	defer un(lock(&f.mutex))
 	return len(f.lines)
 }
 
@@ -108,7 +108,7 @@ func (f *File) LineStart(line int) Pos {
 	if line < 1 {
 		panic(fmt.Sprintf("invalid line number %d (should be >= 1)", line))
 	}
-	defer un(lock(f))
+	defer un(lock(&f.mutex))
 	if line > len(f.lines) {
 		panic(fmt.Sprintf("invalid line number %d (should be < %d)", line, len(f.lines)))
 	}

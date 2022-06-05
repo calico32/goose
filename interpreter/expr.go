@@ -320,7 +320,7 @@ func (i *interpreter) evalArrayInitializer(scope *GooseScope, expr *ast.ArrayIni
 		return nil, err
 	}
 
-	countVal := toInt[int64](count.Value)
+	countVal := toInt64(count.Value)
 
 	if lit, ok := expr.Value.(*ast.Literal); ok {
 		// don't bother evaluating the value if it's a literal
@@ -431,7 +431,7 @@ func (i *interpreter) evalSliceExpr(scope *GooseScope, expr *ast.SliceExpr) (*Go
 			return nil, err
 		}
 
-		idx := toInt[int64](begin.Value)
+		idx := toInt64(begin.Value)
 		if idx < 0 {
 			idx = int64(len(values)) + idx
 			if idx < 0 {
@@ -455,7 +455,7 @@ func (i *interpreter) evalSliceExpr(scope *GooseScope, expr *ast.SliceExpr) (*Go
 			return nil, err
 		}
 
-		idx := toInt[int64](endVal.Value)
+		idx := toInt64(endVal.Value)
 		if idx < 0 {
 			idx = int64(len(values)) + idx
 			if idx < 0 {

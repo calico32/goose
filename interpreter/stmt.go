@@ -395,7 +395,7 @@ func (i *interpreter) getAssignIdentOrIndex(expr ast.Expr, scope *GooseScope) (i
 		if err != nil {
 			return
 		}
-		index = toInt[int](idx.Value)
+		index = toInt(idx.Value)
 		if index >= len(existing.Value.([]*GooseValue)) {
 			err = fmt.Errorf("index %d out of bounds for array of length %d", index, len(existing.Value.([]*GooseValue)))
 			return

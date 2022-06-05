@@ -25,9 +25,8 @@ repeat while n < max
       suffix = "rd"
     end
   end
-  print("the ${n}th fibonacci number is ${fib(n)}")
+  print("the $n$suffix fibonacci number is ${fib(n)}")
   n++
 end
-
 
 print("calls: $calls")
