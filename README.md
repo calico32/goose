@@ -199,12 +199,14 @@ Coming soon!
 
 ## Literals
 
-Integer literals can be written in decimal, hexadecimal, octal, or binary.
+Integer literals can be written in decimal, hexadecimal, octal, or binary. Separators are allowed.
 ```js
-123123124
-0xffabca
+123
+123_123_124
+0xff
+0xff_ab_ca
 0o77123155464673
-0b101010101010101
+0b101010101_01010101
 ```
 
 Examples of floating point literals:
@@ -212,19 +214,20 @@ Examples of floating point literals:
 1.23
 1.
 .23
+1_00.2
 12e2
-12e+2
+1_200e+2
 12e-2
 1.2e5
 ```
 
-Boolean literals can be written as `true` or `false`.
+Boolean literals are written as `true` or `false`.
 ```js
 true
 false
 ```
 
-Null literals can be written as `null`.
+Null literals are written as `null`.
 ```js
 null
 ```
@@ -320,7 +323,7 @@ end
 foo(1, 2)
 ```
 
-Parameters are untyped and are `null` by default.
+Parameters are untyped and are `null` by default, but can be given any default value. Default value expressions are evaluated once at declaration time and then copied for each call.
 ```js
 fn multiPrint(x, y)
   print(x)
@@ -334,14 +337,33 @@ multiPrint("123")
 */
 ```
 
+```js
+let value = "y"
+fn foo(x = "x", y = value, z = [1])
+  z += 2
+  print(x, y, z)
+  return z
+end
+
+foo()                  // prints: x y [1, 2]
+foo(1)                 // prints: 1 y [1, 2]
+foo(1, 2)              // prints: 1 2 [1, 2]
+let z = foo(1, 2, [2]) // prints: 1 2 [2, 2]
+
+value = "z"
+z += 4
+foo() // prints: x y [1, 2]
+
+```
+
 Declared functions are constant. They cannot be reassigned.
 
 Functions are first-class values. They can be passed as arguments to other functions, and can be returned from other functions.
 
 Anonymous functions will be supported in the future.
 ```js
-fn caller(fn, arg)
-  fn(arg)
+fn caller(f, arg)
+  f(arg)
 end
 
 fn square(x)
@@ -368,21 +390,21 @@ plus2(3) // 5
 
 The following functions are available in the global scope:
 
-| Signature                    | Description                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------------- |
-| `print(...any)`              | Prints the arguments to the console, followed by a newline.                     |
-| `printf(fmt, ...any)`        | Prints the arguments to the console, formatted according Golang's `fmt.Printf`. |
-| `join(arr, sep=",")`         | Joins the elements of an array into a string.                                   |
-| `round(num)`                 | Rounds a number to the nearest integer.                                         |
-| `floor(num)`                 | Rounds a number down to the nearest integer.                                    |
-| `ceil(num)`                  | Rounds a number up to the nearest integer.                                      |
-| `exit(code=0)`               | Exits the program with the given exit code.                                     |
-| `nano()`                     | Returns the current time in nanoseconds.                                        |
-| `milli()`                    | Returns the current time in milliseconds.                                       |
-| `sleep(ms)`                  | Sleeps for the given number of milliseconds.                                    |
-| `len(arr)`                   | Returns the length of an array.                                                 |
-| `indices(arr)`               | Returns an array of integers from 0 to the length of the array.                 |
-| `padLeft(str, len, ch=" ")`  | Pads the beginning of a string with the given character.                        |
-| `padRight(str, len, ch=" ")` | Pads the end of a string with the given character.                              |
+| Signature                    | Description                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `print(...any)`              | Prints the arguments to the console, separated by spaces, followed by a newline. |
+| `printf(fmt, ...any)`        | Prints the arguments to the console, formatted according Golang's `fmt.Printf`.  |
+| `join(arr, sep=",")`         | Joins the elements of an array into a string.                                    |
+| `round(num)`                 | Rounds a number to the nearest integer.                                          |
+| `floor(num)`                 | Rounds a number down to the nearest integer.                                     |
+| `ceil(num)`                  | Rounds a number up to the nearest integer.                                       |
+| `exit(code=0)`               | Exits the program with the given exit code.                                      |
+| `nano()`                     | Returns the current time in nanoseconds.                                         |
+| `milli()`                    | Returns the current time in milliseconds.                                        |
+| `sleep(ms)`                  | Sleeps for the given number of milliseconds.                                     |
+| `len(arr)`                   | Returns the length of an array.                                                  |
+| `indices(arr)`               | Returns an array of integers from 0 to the length of the array.                  |
+| `padLeft(str, len, ch=" ")`  | Pads the beginning of a string with the given character.                         |
+| `padRight(str, len, ch=" ")` | Pads the end of a string with the given character.                               |
 
 The standard library functions are not constants and can be overwritten.
