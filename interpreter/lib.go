@@ -135,8 +135,11 @@ var stdlib = map[string]GooseFunc{
 		return &ReturnResult{ns}, nil
 	},
 	"print": func(scope *GooseScope, args []*GooseValue) (*ReturnResult, error) {
-		for _, arg := range args {
+		for i, arg := range args {
 			fmt.Fprint(scope.interp.stdout, toString(arg.Value))
+			if i < len(args)-1 {
+				fmt.Fprint(scope.interp.stdout, " ")
+			}
 		}
 		fmt.Fprintln(scope.interp.stdout)
 		return &ReturnResult{}, nil
