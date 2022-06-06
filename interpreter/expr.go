@@ -47,8 +47,7 @@ func (i *interpreter) evalExpr(scope *GooseScope, expr ast.Expr) (result *GooseV
 func (i *interpreter) evalLiteral(scope *GooseScope, expr *ast.Literal) (*GooseValue, error) {
 	switch expr.Kind {
 	case token.Int:
-		strVal := expr.Value
-		expr.Value = strings.Replace(strVal, "_", "", -1)
+		strVal := strings.Replace(expr.Value, "_", "", -1)
 		base := 10
 		switch {
 		case strings.HasPrefix(expr.Value, "0x"):
