@@ -110,6 +110,11 @@ The following data types are available:
 | array     | an array of any data type                     |
 | composite | generic "JS object" - a map of keys to values |
 
+The following names are reserved and cannot be declared:
+```
+_
+```
+
 ## Strings
 
 String literals are written using "double quotes". Strings may include any character (`"` must be escaped).
