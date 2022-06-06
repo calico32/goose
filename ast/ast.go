@@ -158,7 +158,10 @@ func (c *Comment) End() token.Pos { return token.Pos(int(c.Slash) + len(c.Text))
 // 	return strings.Join(lines, "\n")
 // }
 
-type Field struct{ Ident *Ident }
+type Field struct {
+	Ident *Ident
+	Value Expr
+}
 
 func (f *Field) Pos() token.Pos { return f.Ident.Pos() }
 func (f *Field) End() token.Pos { return f.Ident.End() }

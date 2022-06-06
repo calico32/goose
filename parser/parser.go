@@ -171,7 +171,13 @@ func (p *Parser) parseParameters() (params *ast.FieldList) {
 	var fields []*ast.Field
 	for p.tok != token.RParen {
 		ident := p.parseIdent()
-		fields = append(fields, &ast.Field{Ident: ident})
+		f := &ast.Field{Ident: ident}
+		if p.tok == token.Assign {
+			p.next()
+			f.Value = p.parseExpr()
+		}
+
+		fields = append(fields, f)
 		if p.tok != token.RParen {
 			p.expect(token.Comma)
 		}

@@ -82,6 +82,24 @@ func (i *interpreter) runFuncStmt(scope *GooseScope, stmt *ast.FuncStmt) (result
 		memoCache = make(map[string]*ReturnResult)
 	}
 
+	var paramDefaults []*GooseValue
+	for _, param := range stmt.Params.List {
+		var v *GooseValue
+		var err error
+		if param.Value != nil {
+			v, err = i.evalExpr(scope, param.Value)
+		} else {
+			v = &GooseValue{
+				Type:  GooseTypeNull,
+				Value: nil,
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		paramDefaults = append(paramDefaults, v.Copy())
+	}
+
 	var executor GooseFunc = func(scope *GooseScope, args []*GooseValue) (ret *ReturnResult, err error) {
 		// create new scope
 		funcScope := scope.new(ScopeOwnerFunc)
@@ -107,10 +125,12 @@ func (i *interpreter) runFuncStmt(scope *GooseScope, stmt *ast.FuncStmt) (result
 		}
 
 		// set parameters in scope
-		for i, param := range stmt.Params.List {
+		for idx, param := range stmt.Params.List {
 			v := &GooseValue{Type: GooseTypeNull, Value: nil}
-			if i <= len(args) {
-				v = args[i].Copy()
+			if idx < len(args) {
+				v = args[idx].Copy()
+			} else {
+				v = paramDefaults[idx].Copy()
 			}
 
 			funcScope.set(param.Ident.Name, *v)
