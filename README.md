@@ -153,7 +153,7 @@ let z = x + y
 
 Arrays are written using square brackets `[]`. 
 
-Array literals can be empty, contain any data type, and can be nested.
+Array literals can be empty, can contain any data type, and can be nested.
 ```js
 []
 ["abc", 123, false]
