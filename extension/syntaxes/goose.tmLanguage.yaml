@@ -94,7 +94,7 @@ repository:
   language-constants:
     patterns:
       - name: constant.language.goose
-        match: \b(true|false|null)\b
+        match: \b(true|false|null|_)\b
   string-interpolations:
     patterns:
       - name: string.interpolated.goose
