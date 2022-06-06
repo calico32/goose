@@ -417,12 +417,18 @@ type (
 		Tok    token.Token
 	}
 
-	DeclStmt struct {
-		Decl    token.Token
-		DeclPos token.Pos
-		Ident   *Ident
-		TokPos  token.Pos
-		Value   Expr
+	ConstStmt struct {
+		ConstPos token.Pos
+		Ident    *Ident
+		TokPos   token.Pos
+		Value    Expr
+	}
+
+	LetStmt struct {
+		LetPos token.Pos
+		Ident  *Ident
+		TokPos token.Pos
+		Value  Expr
 	}
 
 	AssignStmt struct {
@@ -489,7 +495,8 @@ func (s *LabeledStmt) Pos() token.Pos       { return s.Label.Pos() }
 func (s *ExprStmt) Pos() token.Pos          { return s.X.Pos() }
 func (s *FuncStmt) Pos() token.Pos          { return s.Func }
 func (s *IncDecStmt) Pos() token.Pos        { return s.X.Pos() }
-func (s *DeclStmt) Pos() token.Pos          { return s.DeclPos }
+func (s *ConstStmt) Pos() token.Pos         { return s.ConstPos }
+func (s *LetStmt) Pos() token.Pos           { return s.LetPos }
 func (s *AssignStmt) Pos() token.Pos        { return s.Lhs.Pos() }
 func (s *ReturnStmt) Pos() token.Pos        { return s.Return }
 func (s *BranchStmt) Pos() token.Pos        { return s.TokPos }
@@ -505,8 +512,14 @@ func (s *LabeledStmt) End() token.Pos { return s.Stmt.End() }
 func (s *ExprStmt) End() token.Pos    { return s.X.End() }
 func (s *FuncStmt) End() token.Pos    { return s.BlockEnd + 3 }
 func (s *IncDecStmt) End() token.Pos  { return s.TokPos + 2 /* len("++") */ }
-func (s *DeclStmt) End() token.Pos    { return s.Value.End() }
-func (s *AssignStmt) End() token.Pos  { return s.Rhs.End() }
+func (s *ConstStmt) End() token.Pos   { return s.Value.End() }
+func (s *LetStmt) End() token.Pos {
+	if s.Value != nil {
+		return s.Value.End()
+	}
+	return s.Ident.End()
+}
+func (s *AssignStmt) End() token.Pos { return s.Rhs.End() }
 func (s *ReturnStmt) End() token.Pos {
 	if s.Result != nil {
 		return s.Result.End()
@@ -536,7 +549,8 @@ func (*LabeledStmt) stmtNode()       {}
 func (*ExprStmt) stmtNode()          {}
 func (*FuncStmt) stmtNode()          {}
 func (*IncDecStmt) stmtNode()        {}
-func (*DeclStmt) stmtNode()          {}
+func (*ConstStmt) stmtNode()         {}
+func (*LetStmt) stmtNode()           {}
 func (*AssignStmt) stmtNode()        {}
 func (*ReturnStmt) stmtNode()        {}
 func (*BranchStmt) stmtNode()        {}

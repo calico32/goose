@@ -551,11 +551,13 @@ func (p *Parser) parseStmt() (s ast.Stmt) {
 		s = p.parseFuncStmt()
 	case
 		// tokens that may start an expression
-		token.Ident, token.Int, token.Float, token.LParen, // operands
+		token.Ident, token.Int, token.Float, token.LParen, token.LBracket, token.LBrace, // operands
 		token.Add, token.Sub, token.Mul, token.LogNot: // unary operators
 		s = p.parseSimpleStmt()
-	case token.Const, token.Let:
-		s = p.parseDeclStmt()
+	case token.Const:
+		s = p.parseConstStmt()
+	case token.Let:
+		s = p.parseLetStmt()
 	case token.Return:
 		s = p.parseReturnStmt()
 	case token.Break, token.Continue:
@@ -605,7 +607,7 @@ func (p *Parser) parseSimpleStmt() ast.Stmt {
 	return &ast.ExprStmt{X: x}
 }
 
-func (p *Parser) parseDeclStmt() *ast.DeclStmt {
+func (p *Parser) parseConstStmt() *ast.ConstStmt {
 	if p.trace {
 		defer un(trace(p, "ConstStmt"))
 	}
@@ -613,8 +615,8 @@ func (p *Parser) parseDeclStmt() *ast.DeclStmt {
 	pos := p.pos
 	decl := p.tok
 	p.next()
-	if decl != token.Const && decl != token.Let {
-		p.errorExpected(pos, "const or let")
+	if decl != token.Const {
+		p.errorExpected(pos, "const")
 		decl = token.Let
 	}
 
@@ -622,12 +624,42 @@ func (p *Parser) parseDeclStmt() *ast.DeclStmt {
 	tokPos := p.expect(token.Assign)
 	rhs := p.parseExpr()
 
-	return &ast.DeclStmt{
-		Decl:    decl,
-		DeclPos: pos,
-		Ident:   lhs,
-		TokPos:  tokPos,
-		Value:   rhs,
+	return &ast.ConstStmt{
+		ConstPos: pos,
+		Ident:    lhs,
+		TokPos:   tokPos,
+		Value:    rhs,
+	}
+}
+
+func (p *Parser) parseLetStmt() *ast.LetStmt {
+	if p.trace {
+		defer un(trace(p, "LetStmt"))
+	}
+
+	pos := p.pos
+	decl := p.tok
+	p.next()
+	if decl != token.Let {
+		p.errorExpected(pos, "let")
+		decl = token.Let
+	}
+
+	lhs := p.parseIdent()
+
+	var tokPos token.Pos
+	var rhs ast.Expr
+
+	if p.tok == token.Assign {
+		tokPos = p.expect(token.Assign)
+		rhs = p.parseExpr()
+	}
+
+	return &ast.LetStmt{
+		LetPos: pos,
+		Ident:  lhs,
+		TokPos: tokPos,
+		Value:  rhs,
 	}
 }
 

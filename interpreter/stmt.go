@@ -27,8 +27,10 @@ func (i *interpreter) runStmt(scope *GooseScope, stmt ast.Stmt) (StmtResult, err
 		return i.runIfStmt(scope, stmt)
 	case *ast.ReturnStmt:
 		return i.runReturnStmt(scope, stmt)
-	case *ast.DeclStmt:
-		return i.runDeclStmt(scope, stmt)
+	case *ast.ConstStmt:
+		return i.runConstStmt(scope, stmt)
+	case *ast.LetStmt:
+		return i.runLetStmt(scope, stmt)
 	case *ast.AssignStmt:
 		return i.runAssignStmt(scope, stmt)
 	case *ast.ExprStmt:
@@ -408,8 +410,8 @@ func (i *interpreter) getAssignIdentOrIndex(expr ast.Expr, scope *GooseScope) (i
 	return
 }
 
-func (i *interpreter) runDeclStmt(scope *GooseScope, stmt *ast.DeclStmt) (result StmtResult, err error) {
-	defer un(trace(i, "decl stmt"))
+func (i *interpreter) runConstStmt(scope *GooseScope, stmt *ast.ConstStmt) (result StmtResult, err error) {
+	defer un(trace(i, "const stmt"))
 
 	if stmt.Ident.Name == "_" {
 		return nil, fmt.Errorf("cannot declare _")
@@ -425,7 +427,44 @@ func (i *interpreter) runDeclStmt(scope *GooseScope, stmt *ast.DeclStmt) (result
 	}
 
 	scope.set(stmt.Ident.Name, GooseValue{
-		Constant: stmt.Decl == token.Const,
+		Constant: true,
+		Type:     value.Type,
+		Value:    value.Value,
+	})
+
+	return &VoidResult{}, nil
+}
+
+func (i *interpreter) runLetStmt(scope *GooseScope, stmt *ast.LetStmt) (result StmtResult, err error) {
+	defer un(trace(i, "let stmt"))
+
+	if stmt.Ident.Name == "_" {
+		return nil, fmt.Errorf("cannot declare _")
+	}
+
+	if scope.isDefinedInCurrentScope(stmt.Ident.Name) {
+		return nil, fmt.Errorf("cannot redefine variable %s", stmt.Ident.Name)
+	}
+
+	var value *GooseValue
+
+	if stmt.Value != nil {
+		value, err = i.evalExpr(scope, stmt.Value)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if value == nil {
+		value = &GooseValue{
+			Constant: false,
+			Type:     GooseTypeNull,
+			Value:    nil,
+		}
+	}
+
+	scope.set(stmt.Ident.Name, GooseValue{
+		Constant: false,
 		Type:     value.Type,
 		Value:    value.Value,
 	})
