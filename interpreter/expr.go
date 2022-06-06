@@ -88,7 +88,7 @@ func (i *interpreter) evalLiteral(scope *GooseScope, expr *ast.Literal) (*GooseV
 		}, nil
 
 	default:
-		panic(fmt.Errorf("unexpected literal kind %s", expr.Kind))
+		return nil, fmt.Errorf("unexpected literal kind %s", expr.Kind)
 	}
 }
 

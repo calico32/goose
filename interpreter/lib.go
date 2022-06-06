@@ -167,6 +167,7 @@ var stdlib = map[string]GooseFunc{
 			}
 			exitCode = toInt(args[0].Value)
 		}
+		// TODO: tinygo doesn't let you recover panics, so any exit will cause a crash
 		panic(gooseExit{exitCode})
 	},
 	"floor": func(scope *GooseScope, args []*GooseValue) (*ReturnResult, error) {

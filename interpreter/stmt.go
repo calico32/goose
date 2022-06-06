@@ -38,7 +38,7 @@ func (i *interpreter) runStmt(scope *GooseScope, stmt ast.Stmt) (StmtResult, err
 	case *ast.IncDecStmt:
 		return i.runIncDecStmt(scope, stmt)
 	default:
-		panic(fmt.Errorf("unexpected statement type %T", stmt))
+		return nil, fmt.Errorf("unexpected statement type %T", stmt)
 	}
 }
 
@@ -185,7 +185,7 @@ func (i *interpreter) runBranchStmt(scope *GooseScope, stmt *ast.BranchStmt) (re
 	case token.Continue:
 		return &ContinueResult{}, nil
 	default:
-		panic(fmt.Errorf("unexpected branch type %v", stmt.Tok))
+		return nil, fmt.Errorf("unexpected branch type %v", stmt.Tok)
 	}
 }
 

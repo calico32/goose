@@ -61,7 +61,7 @@ func (t GooseType) String() string {
 	case GooseTypeNumeric:
 		return "<numeric>"
 	default:
-		panic(fmt.Errorf("Unexpected type %d in GooseType.String()", t))
+		return fmt.Sprintf("<unknown_type:%d>", t)
 	}
 }
 
@@ -112,7 +112,7 @@ func (s ScopeOwner) String() string {
 	case ScopeOwnerBuiltin:
 		return "ScopeOwnerBuiltin"
 	default:
-		panic(fmt.Errorf("Unexpected scope owner %d", s))
+		return fmt.Sprintf("<unknown_scope_owner:%d>", s)
 	}
 }
 

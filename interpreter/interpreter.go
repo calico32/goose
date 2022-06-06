@@ -152,7 +152,7 @@ func (i *interpreter) expectType(value *GooseValue, t GooseType) error {
 	}
 
 	if !isPowerOfTwo(int(t)) {
-		panic(fmt.Errorf("unexpected GooseType %d", t))
+		return fmt.Errorf("unexpected GooseType %d", t)
 	}
 
 	if value.Type != t {

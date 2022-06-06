@@ -326,7 +326,7 @@ func (s *Scanner) scanNumber() (token.Token, string) {
 	}
 	if hadSeparators {
 		if i := invalidSep(literal); i >= 0 {
-			s.error(offset+i, "'_' must separate successive digits")
+			s.error(offset+i, "too many successive separators in "+litname(prefix))
 		}
 	}
 
@@ -616,7 +616,12 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, literal string) {
 				tok = token.MulAssign
 			} else if s.ch == '*' {
 				s.next()
-				tok = token.Pow
+				if s.ch == '=' {
+					s.next()
+					tok = token.PowAssign
+				} else {
+					tok = token.Pow
+				}
 			} else {
 				tok = token.Mul
 			}
