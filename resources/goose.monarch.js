@@ -1,61 +1,92 @@
-// goose language specification for monaco editor - WIP
-// TODO
-
-return {
-  // Set defaultToken to invalid to see what you do not tokenize yet
+/** @type {import('monaco-editor').languages.IMonarchLanguage} */
+const gooseMonarch = {
   defaultToken: 'invalid',
 
   keywords: [
     'let',
     'const',
+    'memo',
     'fn',
+    'end',
+    'return',
     'if',
-    'in',
     'else',
     'repeat',
+    'while',
+    'times',
     'forever',
     'break',
     'continue',
-    'memo',
-    'times',
-    'while',
     'for',
-    'return',
-    'end',
+    'in',
   ],
 
   typeKeywords: [],
 
-  operators: ['=', '==', '+', '-', '*', '/', '%', '+=', '-=', '*=', '/=', '%=', '&&', '||', '!'],
+  // prettier-ignore
+  operators: [
+    '=',
+    '+', '-', '*', '/', '%', '**',
+    '+=', '-=', '*=', '/=', '%=', '**=',
+    '++', '--',
+    '>', '<', '>=', '<=',
+    '==', '!=',
+    '&&', '||', '!'
+  ],
 
-  // we include these common regular expressions
-  symbols: /[=><!~?:&|+\-*\/\^%]+/,
+  langconstants: ['true', 'false', 'null', '_'],
 
-  // C# style strings
-  escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
+  symbols: /[=><!~?:&|+\-*/^%]+/,
+  escapes: /\\(?:[abfnrtv\\"'$]|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
+  ident: /[a-zA-Z_$][a-zA-Z0-9_$]*/,
+  upperIdent: /[A-Z][a-zA-Z0-9_$]*/,
+  digits: /\d+(_\d+)*/,
+  octaldigits: /[0-7]+(_[0-7]+)*/,
+  binarydigits: /[01]+(_[01]+)*/,
+  hexdigits: /[[0-9a-fA-F]+(_[0-9a-fA-F]+)*/,
 
-  // The main tokenizer for our languages
   tokenizer: {
     root: [
-      // identifiers and keywords
+      // function decl
       [
-        /[a-z_$][\w$]*/,
+        /(fn)(\s+)([a-zA-Z_$][a-zA-Z0-9_$]*)(\()/,
+        [
+          { token: 'keyword' },
+          { token: 'brace' },
+          { token: 'function' },
+          { token: 'paren', next: '@params' },
+        ],
+      ],
+
+      // numbers
+      [/(@digits)[eE]([-+]?(@digits))?/, 'number'],
+      [/(@digits)\.(@digits)([eE][-+]?(@digits))?/, 'number'],
+      [/0x(@hexdigits)/, 'number'],
+      [/0o?(@octaldigits)/, 'number'],
+      [/0b(@binarydigits)/, 'number'],
+      [/(@digits)/, 'number'],
+
+      // function call
+      [/(@ident)(?=\()/, 'function'],
+
+      // identifiers and keywords
+      [/@upperIdent/, 'class'], // to show class names nicely
+      [
+        /@ident/,
         {
           cases: {
-            '@typeKeywords': 'keyword',
+            '@langconstants': 'lang-constant',
             '@keywords': 'keyword',
             '@default': 'identifier',
           },
         },
       ],
-      [/[A-Z][\w\$]*/, 'type.identifier'], // to show class names nicely
 
       // whitespace
       { include: '@whitespace' },
 
       // delimiters and operators
-      [/[{}()\[\]]/, '@brackets'],
-      [/[<>](?!@symbols)/, '@brackets'],
+      [/[{}()[\]]/, 'brace'],
       [
         /@symbols/,
         {
@@ -65,42 +96,46 @@ return {
           },
         },
       ],
-      // numbers
-      [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
-      [/0[xX][0-9a-fA-F]+/, 'number.hex'],
-      [/\d+/, 'number'],
 
       // delimiter: after number because of .\d floats
       [/[;,.]/, 'delimiter'],
 
       // strings
-      [/"([^"\\]|\\.)*$/, 'string.invalid'], // non-teminated string
-      [/"/, { token: 'string.quote', bracket: '@open', next: '@string' }],
-
-      // characters
-      [/'[^\\']'/, 'string'],
-      [/(')(@escapes)(')/, ['string', 'string.escape', 'string']],
-      [/'/, 'string.invalid'],
+      [/"([^"\\]|\\.)*$/, 'string-invalid'], // non-teminated string
+      [/"/, { token: 'string', bracket: '@open', next: '@string' }],
     ],
 
-    comment: [
-      [/[^\/*]+/, 'comment'],
-      [/\/\*/, 'comment', '@push'], // nested comment
-      ['\\*/', 'comment', '@pop'],
-      [/[\/*]/, 'comment'],
-    ],
-
-    string: [
-      [/[^\\"]+/, 'string'],
-      [/@escapes/, 'string.escape'],
-      [/\\./, 'string.escape.invalid'],
-      [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
+    params: [
+      [/@ident/, 'parameter'],
+      [/,/, 'delimiter'],
+      [/\)/, { token: 'paren', next: '@pop' }],
     ],
 
     whitespace: [
       [/[ \t\r\n]+/, 'white'],
       [/\/\*/, 'comment', '@comment'],
       [/\/\/.*$/, 'comment'],
+    ],
+
+    comment: [
+      [/[^/*]+/, 'comment'],
+      ['\\*/', 'comment', '@pop'],
+      [/[/*]/, 'comment'],
+    ],
+
+    string: [
+      [/\$\{/, { token: 'string-interpolated', next: '@string_interpolated' }],
+      [/\$[a-zA-Z_][\w$]*/, 'string-interpolated'],
+      [/[^\\"$]+/, 'string'],
+      [/@escapes/, 'string-escape'],
+      [/\\./, 'string-escape-invalid'],
+      [/"/, { token: 'string', bracket: '@close', next: '@pop' }],
+    ],
+
+    string_interpolated: [
+      [/\{/, { token: 'string-interpolated', next: '@string_interpolated' }],
+      [/\}/, { token: 'string-interpolated', next: '@pop' }],
+      { include: 'root' },
     ],
   },
 }
