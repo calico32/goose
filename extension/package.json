@@ -22,6 +22,10 @@
           "Goose",
           "goose"
         ],
+        "icon": {
+          "light": "goose.png",
+          "dark": "goose.png"
+        },
         "extensions": [
           ".goose",
           ".goos"
