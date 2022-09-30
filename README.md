@@ -23,6 +23,7 @@
     - [Repeat forever loops](#repeat-forever-loops)
     - [Branching](#branching)
   - [Functions](#functions)
+    - [Memoization](#memoization)
   - [Standard library](#standard-library)
 
 # Usage
@@ -173,7 +174,7 @@ Array initializer expressions can be used to initialize an array. The special id
 [(_ + 1) ** 2; 10] // [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
 ```
 
-Elements can be accessed using square brackets `[]`. Indexes start at 0, and negative indexes are supported.
+Elements can be accessed using square brackets `[]`. indices start at 0, and negative indices are supported.
 ```js
 let arr = [1, 2, 3]
 arr[3]  // error
@@ -186,7 +187,7 @@ arr[-3] // 1
 arr[-4] // error
 ```
 
-Slice expressions can be used to access a portion of an array. Negative indexes are supported.
+Slice expressions can be used to access a portion of an array. Negative indices are supported.
 ```js
 let arr = [1, 2, 3, 4, 5]
 arr[1:3]   // [2, 3]
@@ -257,7 +258,7 @@ The following expressions are falsy:
 ""
 0
 false
-nil
+null
 [] // empty array
 {} // empty composite
 ```
@@ -389,6 +390,39 @@ end
 
 plus2 = makeAdder(2)
 plus2(3) // 5
+```
+
+### Memoization
+
+Functions can be memoized using the `memo` keyword. Memoized functions will only be called once for each unique set of arguments.
+```js
+let fibCalls = 0
+fn fib(n)
+  fibCalls++
+
+  if n == 0 || n == 1
+    return n
+  end
+
+  return fib(n - 1) + fib(n - 2)
+end
+
+let fibMemoCalls = 0
+memo fn fibMemo(n)
+  fibMemoCalls++
+
+  if n == 0 || n == 1
+    return n
+  end
+
+  return fibMemo(n - 1) + fibMemo(n - 2)
+end
+
+print(fib(10)) // 55
+print(fibCalls) // 177
+
+print(fibMemo(10))  // 55
+print(fibMemoCalls) // 11
 ```
 
 ## Standard library
