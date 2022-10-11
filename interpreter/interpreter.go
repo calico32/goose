@@ -142,7 +142,7 @@ func (i *interpreter) run(doPanic bool) (exitCode int) {
 	return 0
 }
 
-func (i *interpreter) expectType(value *GooseValue, t GooseType) error {
+func expectType(value *GooseValue, t GooseType) error {
 	if t > GooseTypeError {
 		if value.Type&t != 0 {
 			return nil
@@ -164,11 +164,11 @@ func (i *interpreter) expectType(value *GooseValue, t GooseType) error {
 
 func (i *interpreter) numericOperation(lhs *GooseValue, op token.Token, rhs *GooseValue) (*GooseValue, error) {
 	defer un(trace(i, "numeric op"))
-	err := i.expectType(lhs, GooseTypeNumeric)
+	err := expectType(lhs, GooseTypeNumeric)
 	if err != nil {
 		return nil, err
 	}
-	err = i.expectType(rhs, GooseTypeNumeric)
+	err = expectType(rhs, GooseTypeNumeric)
 	if err != nil {
 		return nil, err
 	}
@@ -191,9 +191,5 @@ func (i *interpreter) numericOperation(lhs *GooseValue, op token.Token, rhs *Goo
 		}
 	}
 
-	return &GooseValue{
-		Constant: false,
-		Type:     typeOf(result),
-		Value:    result,
-	}, nil
+	return wrap(result), nil
 }

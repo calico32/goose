@@ -13,6 +13,9 @@
   - [Variables and data types](#variables-and-data-types)
   - [Strings](#strings)
   - [Arrays](#arrays)
+    - [Array initializers](#array-initializers)
+    - [Indexing](#indexing)
+    - [Slicing](#slicing)
   - [Composites](#composites)
   - [Literals](#literals)
   - [Control flow](#control-flow)
@@ -166,6 +169,8 @@ Array literals can be empty, can contain any data type, and can be nested.
 [1, 2, 3, [4, 5, 6]]
 ```
 
+### Array initializers
+
 Array initializer expressions can be used to initialize an array. The special identifier `_` can be used to access the current index during initialization.
 ```js
 [null; 10]         // array of 10 nulls
@@ -173,6 +178,8 @@ Array initializer expressions can be used to initialize an array. The special id
 [_; 10]            // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 [(_ + 1) ** 2; 10] // [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
 ```
+
+### Indexing
 
 Elements can be accessed using square brackets `[]`. indices start at 0, and negative indices are supported.
 ```js
@@ -186,6 +193,8 @@ arr[-2] // 2
 arr[-3] // 1
 arr[-4] // error
 ```
+
+### Slicing
 
 Slice expressions can be used to access a portion of an array. Negative indices are supported.
 ```js
@@ -201,7 +210,30 @@ arr[3:1]   // error
 
 ## Composites
 
-Coming soon!
+Composites are "JS-like objects" that can be used to map keys to values. They are written using curly braces `{}`. 
+
+Keys can be strings or numbers, and values can be any data type. Keys must be unique. Arbitrary expressions can be used as keys with square brackets `[]`. Fields are separated by commas `,`. A trailing comma is allowed.
+
+```js
+let key1 = "some key value"
+
+let obj = {
+  foo: 123,
+  bar: "baz",
+  qux: [1, 2, 3],
+  [key1]: 456,
+  [1 + 2]: "three",
+}
+```
+
+Values can be accessed with dot notation `.` or square brackets `[]`. 
+```js
+obj.foo    // 123
+obj["bar"] // "baz"
+obj.qux[1] // 2
+obj[key1]  // 456
+obj[1 + 2] // "three"
+```
 
 ## Literals
 
@@ -445,5 +477,7 @@ The following functions are available in the global scope:
 | `indices(arr)`               | Returns an array of integers from 0 to the length of the array.                  |
 | `padLeft(str, len, ch=" ")`  | Pads the beginning of a string with the given character.                         |
 | `padRight(str, len, ch=" ")` | Pads the end of a string with the given character.                               |
+| `keys(comp)`                 | Returns an array of the keys of the composite.                                   |
+| `values(comp)`               | Returns an array of the values of the composite.                                 |
 
 The standard library functions are not constants and can be overwritten.

@@ -14,50 +14,6 @@ func trimRight(s string) string {
 	return s[0:i]
 }
 
-// func InitGob() {
-// 	gob.Register(File{})
-// 	gob.Register(ArrayInitializer{})
-// 	gob.Register(ArrayLiteral{})
-// 	gob.Register(AssignStmt{})
-// 	gob.Register(BadExpr{})
-// 	gob.Register(BadStmt{})
-// 	gob.Register(BinaryExpr{})
-// 	gob.Register(BranchStmt{})
-// 	gob.Register(CallExpr{})
-// 	gob.Register(Comment{})
-// 	gob.Register(CompositeLiteral{})
-// 	gob.Register(DeclStmt{})
-// 	gob.Register(EmptyStmt{})
-// 	gob.Register(ExprStmt{})
-// 	gob.Register(Field{})
-// 	gob.Register(FieldList{})
-// 	gob.Register(ForStmt{})
-// 	gob.Register(FuncStmt{})
-// 	gob.Register(Ident{})
-// 	gob.Register(IfStmt{})
-// 	gob.Register(IncDecStmt{})
-// 	gob.Register(IndexExpr{})
-// 	gob.Register(KeyValueExpr{})
-// 	gob.Register(LabeledStmt{})
-// 	gob.Register(Literal{})
-// 	gob.Register(ParenExpr{})
-// 	gob.Register(RepeatCountStmt{})
-// 	gob.Register(RepeatForeverStmt{})
-// 	gob.Register(RepeatWhileStmt{})
-// 	gob.Register(ReturnStmt{})
-// 	gob.Register(SelectorExpr{})
-// 	gob.Register(SliceExpr{})
-// 	gob.Register(StringLiteral{})
-// 	gob.Register(StringLiteralEnd{})
-// 	gob.Register(StringLiteralInterpExpr{})
-// 	gob.Register(StringLiteralInterpIdent{})
-// 	gob.Register(StringLiteralMiddle{})
-// 	gob.Register(StringLiteralStart{})
-// 	gob.Register(Token{})
-// 	gob.Register(UnaryExpr{})
-// 	gob.Register(ValueSpec{})
-// }
-
 type Token struct {
 	Type   token.Token
 	Source string
@@ -158,21 +114,26 @@ func (c *Comment) End() token.Pos { return token.Pos(int(c.Slash) + len(c.Text))
 // 	return strings.Join(lines, "\n")
 // }
 
-type Field struct {
+type CompositeField struct {
+	Key   Expr
+	Value Expr
+}
+
+type FuncParam struct {
 	Ident *Ident
 	Value Expr
 }
 
-func (f *Field) Pos() token.Pos { return f.Ident.Pos() }
-func (f *Field) End() token.Pos { return f.Ident.End() }
+func (f *FuncParam) Pos() token.Pos { return f.Ident.Pos() }
+func (f *FuncParam) End() token.Pos { return f.Ident.End() }
 
-type FieldList struct {
+type FuncParamList struct {
 	Opening token.Pos
-	List    []*Field
+	List    []*FuncParam
 	Closing token.Pos
 }
 
-func (f *FieldList) Pos() token.Pos {
+func (f *FuncParamList) Pos() token.Pos {
 	if f.Opening.IsValid() {
 		return f.Opening
 	}
@@ -182,7 +143,7 @@ func (f *FieldList) Pos() token.Pos {
 	return token.NoPos
 }
 
-func (f *FieldList) End() token.Pos {
+func (f *FuncParamList) End() token.Pos {
 	if f.Closing.IsValid() {
 		return f.Closing + 1
 	}
@@ -192,7 +153,7 @@ func (f *FieldList) End() token.Pos {
 	return token.NoPos
 }
 
-func (f *FieldList) NumFields() int { return len(f.List) }
+func (f *FuncParamList) NumFields() int { return len(f.List) }
 
 type (
 	BadExpr struct {
@@ -258,7 +219,7 @@ type (
 
 	CompositeLiteral struct {
 		Lbrace token.Pos
-		Fields *FieldList
+		Fields []*CompositeField
 		Rbrace token.Pos
 	}
 
@@ -273,10 +234,10 @@ type (
 		Sel *Ident
 	}
 
-	IndexExpr struct {
+	BracketSelectorExpr struct {
 		X      Expr
 		LBrack token.Pos
-		Index  Expr
+		Sel    Expr
 		RBrack token.Pos
 	}
 
@@ -329,7 +290,7 @@ func (x *ArrayInitializer) Pos() token.Pos         { return x.Opening }
 func (x *CompositeLiteral) Pos() token.Pos         { return x.Lbrace }
 func (x *ParenExpr) Pos() token.Pos                { return x.Lparen }
 func (x *SelectorExpr) Pos() token.Pos             { return x.X.Pos() }
-func (x *IndexExpr) Pos() token.Pos                { return x.X.Pos() }
+func (x *BracketSelectorExpr) Pos() token.Pos      { return x.X.Pos() }
 func (x *SliceExpr) Pos() token.Pos                { return x.X.Pos() }
 func (x *CallExpr) Pos() token.Pos                 { return x.Fun.Pos() }
 func (x *UnaryExpr) Pos() token.Pos                { return x.OpPos }
@@ -352,7 +313,7 @@ func (x *ArrayInitializer) End() token.Pos        { return x.Closing + 1 }
 func (x *CompositeLiteral) End() token.Pos        { return x.Rbrace + 1 }
 func (x *ParenExpr) End() token.Pos               { return x.Rparen + 1 }
 func (x *SelectorExpr) End() token.Pos            { return x.Sel.End() }
-func (x *IndexExpr) End() token.Pos               { return x.RBrack + 1 }
+func (x *BracketSelectorExpr) End() token.Pos     { return x.RBrack + 1 }
 func (x *SliceExpr) End() token.Pos               { return x.RBrack + 1 }
 func (x *CallExpr) End() token.Pos                { return x.RParen + 1 }
 func (x *UnaryExpr) End() token.Pos               { return x.X.End() }
@@ -373,7 +334,7 @@ func (*ArrayInitializer) exprNode()                  {}
 func (*CompositeLiteral) exprNode()                  {}
 func (*ParenExpr) exprNode()                         {}
 func (*SelectorExpr) exprNode()                      {}
-func (*IndexExpr) exprNode()                         {}
+func (*BracketSelectorExpr) exprNode()               {}
 func (*SliceExpr) exprNode()                         {}
 func (*CallExpr) exprNode()                          {}
 func (*UnaryExpr) exprNode()                         {}
@@ -409,7 +370,7 @@ type (
 		Memo     token.Pos
 		Func     token.Pos
 		Name     *Ident
-		Params   *FieldList
+		Params   *FuncParamList
 		Body     []Stmt
 		BlockEnd token.Pos
 	}

@@ -1,5 +1,6 @@
 *.wasm
 *.log
-test/
+test/main.goose
+test/**
 /goose
 .vscode/settings.json

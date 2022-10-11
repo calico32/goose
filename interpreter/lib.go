@@ -6,20 +6,20 @@ import (
 	"time"
 )
 
-func padCommon(scope *GooseScope, args []*GooseValue) (str string, pad string, err error) {
+func padCommon(_ *GooseScope, args []*GooseValue) (str string, pad string, err error) {
 	if len(args) < 2 {
 		err = fmt.Errorf("pad__(x, int, val): expected at least 2 arguments")
 		return
 	}
 
-	err = scope.interp.expectType(args[0], GooseTypeString)
+	err = expectType(args[0], GooseTypeString)
 	if err != nil {
 		return
 	}
 
 	str = args[0].Value.(string)
 
-	err = scope.interp.expectType(args[1], GooseTypeNumeric)
+	err = expectType(args[1], GooseTypeNumeric)
 	if err != nil {
 		return
 	}
@@ -34,7 +34,7 @@ func padCommon(scope *GooseScope, args []*GooseValue) (str string, pad string, e
 	padChar := " "
 
 	if len(args) > 2 {
-		err = scope.interp.expectType(args[2], GooseTypeString)
+		err = expectType(args[2], GooseTypeString)
 		if err != nil {
 			return
 		}
@@ -55,12 +55,12 @@ func padCommon(scope *GooseScope, args []*GooseValue) (str string, pad string, e
 }
 
 var stdlib = map[string]GooseFunc{
-	"indices": func(scope *GooseScope, args []*GooseValue) (*ReturnResult, error) {
+	"indices": func(_ *GooseScope, args []*GooseValue) (*ReturnResult, error) {
 		if len(args) != 1 {
 			return nil, fmt.Errorf("indices(x): expected 1 argument")
 		}
 
-		err := scope.interp.expectType(args[0], GooseTypeArray)
+		err := expectType(args[0], GooseTypeArray)
 		if err != nil {
 			return nil, err
 		}
@@ -69,10 +69,7 @@ var stdlib = map[string]GooseFunc{
 		result := make([]*GooseValue, len(values))
 
 		for i := range values {
-			result[i] = &GooseValue{
-				Type:  GooseTypeInt,
-				Value: int64(i),
-			}
+			result[i] = wrap(int64(i))
 		}
 
 		return &ReturnResult{result}, nil
@@ -113,12 +110,12 @@ var stdlib = map[string]GooseFunc{
 			return nil, fmt.Errorf("len(x): expected an array or string, got %s", args[0].Type)
 		}
 	},
-	"sleep": func(scope *GooseScope, args []*GooseValue) (*ReturnResult, error) {
+	"sleep": func(_ *GooseScope, args []*GooseValue) (*ReturnResult, error) {
 		var ms int64
 		if len(args) == 0 {
 			return nil, fmt.Errorf("sleep(x): expected 1 argument")
 		}
-		err := scope.interp.expectType(args[0], GooseTypeNumeric)
+		err := expectType(args[0], GooseTypeNumeric)
 		if err != nil {
 			return nil, err
 		}
@@ -161,10 +158,10 @@ var stdlib = map[string]GooseFunc{
 		fmt.Fprintf(scope.interp.stdout, format, values...)
 		return &ReturnResult{}, nil
 	},
-	"exit": func(scope *GooseScope, args []*GooseValue) (*ReturnResult, error) {
+	"exit": func(_ *GooseScope, args []*GooseValue) (*ReturnResult, error) {
 		exitCode := 0
 		if len(args) != 0 {
-			err := scope.interp.expectType(args[0], GooseTypeNumeric)
+			err := expectType(args[0], GooseTypeNumeric)
 			if err != nil {
 				return nil, err
 			}
@@ -173,22 +170,22 @@ var stdlib = map[string]GooseFunc{
 		// TODO: tinygo doesn't let you recover panics, so any exit will cause a crash
 		panic(gooseExit{exitCode})
 	},
-	"floor": func(scope *GooseScope, args []*GooseValue) (*ReturnResult, error) {
+	"floor": func(_ *GooseScope, args []*GooseValue) (*ReturnResult, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("floor(x): expected 1 argument")
 		}
-		err := scope.interp.expectType(args[0], GooseTypeNumeric)
+		err := expectType(args[0], GooseTypeNumeric)
 		if err != nil {
 			return nil, err
 		}
 
 		return &ReturnResult{toInt64(args[0].Value)}, nil
 	},
-	"ceil": func(scope *GooseScope, args []*GooseValue) (*ReturnResult, error) {
+	"ceil": func(_ *GooseScope, args []*GooseValue) (*ReturnResult, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("ceil(x): expected 1 argument")
 		}
-		err := scope.interp.expectType(args[0], GooseTypeNumeric)
+		err := expectType(args[0], GooseTypeNumeric)
 		if err != nil {
 			return nil, err
 		}
@@ -199,11 +196,11 @@ var stdlib = map[string]GooseFunc{
 		}
 
 	},
-	"round": func(scope *GooseScope, args []*GooseValue) (*ReturnResult, error) {
+	"round": func(_ *GooseScope, args []*GooseValue) (*ReturnResult, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("round(x): expected 1 argument")
 		}
-		err := scope.interp.expectType(args[0], GooseTypeNumeric)
+		err := expectType(args[0], GooseTypeNumeric)
 		if err != nil {
 			return nil, err
 		}
@@ -213,13 +210,13 @@ var stdlib = map[string]GooseFunc{
 			return &ReturnResult{int64(args[0].Value.(float64) + 0.5)}, nil
 		}
 	},
-	"join": func(scope *GooseScope, args []*GooseValue) (*ReturnResult, error) {
+	"join": func(_ *GooseScope, args []*GooseValue) (*ReturnResult, error) {
 		if len(args) < 1 {
 			return nil, fmt.Errorf("join(list, sep): expected at least 1 argument")
 		}
 
 		array := args[0]
-		if err := scope.interp.expectType(array, GooseTypeArray); err != nil {
+		if err := expectType(array, GooseTypeArray); err != nil {
 			return nil, err
 		}
 
@@ -234,7 +231,7 @@ var stdlib = map[string]GooseFunc{
 
 		var sep string
 		if len(args) > 1 {
-			if err := scope.interp.expectType(args[1], GooseTypeString); err != nil {
+			if err := expectType(args[1], GooseTypeString); err != nil {
 				return nil, err
 			}
 			sep = args[1].Value.(string)
@@ -252,10 +249,44 @@ var stdlib = map[string]GooseFunc{
 
 		return &ReturnResult{out.String()}, nil
 	},
+	"keys": func(_ *GooseScope, args []*GooseValue) (*ReturnResult, error) {
+		if len(args) < 1 {
+			return nil, fmt.Errorf("keys(composite): expected 1 argument")
+		}
+
+		composite := args[0]
+		if err := expectType(composite, GooseTypeComposite); err != nil {
+			return nil, err
+		}
+
+		keys := make([]*GooseValue, len(composite.Value.(GooseComposite)))
+		for k := range composite.Value.(GooseComposite) {
+			keys = append(keys, wrap(k))
+		}
+
+		return &ReturnResult{keys}, nil
+	},
+	"values": func(_ *GooseScope, args []*GooseValue) (*ReturnResult, error) {
+		if len(args) < 1 {
+			return nil, fmt.Errorf("values(composite): expected 1 argument")
+		}
+
+		composite := args[0]
+		if err := expectType(composite, GooseTypeComposite); err != nil {
+			return nil, err
+		}
+
+		values := make([]*GooseValue, len(composite.Value.(GooseComposite)))
+		for _, v := range composite.Value.(GooseComposite) {
+			values = append(values, v)
+		}
+
+		return &ReturnResult{values}, nil
+	},
 }
 
 var builtins = map[string]GooseValue{
-	"true":  {true, GooseTypeBool, true},
-	"false": {true, GooseTypeBool, false},
-	"null":  {true, GooseTypeNull, nil},
+	"true":  {Constant: true, Type: GooseTypeBool, Value: true},
+	"false": {Constant: true, Type: GooseTypeBool, Value: false},
+	"null":  {Constant: true, Type: GooseTypeNull, Value: nil},
 }

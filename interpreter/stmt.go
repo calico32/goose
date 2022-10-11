@@ -89,10 +89,7 @@ func (i *interpreter) runFuncStmt(scope *GooseScope, stmt *ast.FuncStmt) (result
 		if param.Value != nil {
 			v, err = i.evalExpr(scope, param.Value)
 		} else {
-			v = &GooseValue{
-				Type:  GooseTypeNull,
-				Value: nil,
-			}
+			v = null
 		}
 		if err != nil {
 			return nil, err
@@ -102,7 +99,8 @@ func (i *interpreter) runFuncStmt(scope *GooseScope, stmt *ast.FuncStmt) (result
 
 	var executor GooseFunc = func(scope *GooseScope, args []*GooseValue) (ret *ReturnResult, err error) {
 		// create new scope
-		funcScope := scope.new(ScopeOwnerFunc)
+		// TODO: closures
+		funcScope := scope.fork(ScopeOwnerFunc)
 
 		// use memo cache if applicable
 		if stmt.Memo.IsValid() {
@@ -126,7 +124,7 @@ func (i *interpreter) runFuncStmt(scope *GooseScope, stmt *ast.FuncStmt) (result
 
 		// set parameters in scope
 		for idx, param := range stmt.Params.List {
-			v := &GooseValue{Type: GooseTypeNull, Value: nil}
+			var v *GooseValue
 			if idx < len(args) {
 				v = args[idx].Copy()
 			} else {
@@ -144,7 +142,7 @@ func (i *interpreter) runFuncStmt(scope *GooseScope, stmt *ast.FuncStmt) (result
 		case *ReturnResult:
 			return result, nil
 		case *BreakResult, *ContinueResult:
-			return nil, errors.New("Cannot branch from function")
+			return nil, errors.New("cannot branch from function")
 		}
 
 		return &ReturnResult{nil}, nil
@@ -168,11 +166,7 @@ func (i *interpreter) runRepeatCountStmt(scope *GooseScope, stmt *ast.RepeatCoun
 	}
 
 	if totalCount.Type == GooseTypeFloat {
-		totalCount = &GooseValue{
-			Constant: false,
-			Type:     GooseTypeInt,
-			Value:    int64(totalCount.Value.(float64)),
-		}
+		totalCount = wrap(int64(totalCount.Value.(float64)))
 	}
 
 	if totalCount.Type != GooseTypeInt {
@@ -180,7 +174,7 @@ func (i *interpreter) runRepeatCountStmt(scope *GooseScope, stmt *ast.RepeatCoun
 	}
 
 	for count < totalCount.Value.(int64) {
-		repeatScope := scope.new(ScopeOwnerRepeat)
+		repeatScope := scope.fork(ScopeOwnerRepeat)
 		result, err = i.runStmts(repeatScope, stmt.Body)
 		if err != nil {
 			return nil, err
@@ -223,7 +217,7 @@ func (i *interpreter) runRepeatWhileStmt(scope *GooseScope, stmt *ast.RepeatWhil
 			break
 		}
 
-		repeatScope := scope.new(ScopeOwnerRepeat)
+		repeatScope := scope.fork(ScopeOwnerRepeat)
 		result, err = i.runStmts(repeatScope, stmt.Body)
 		if err != nil {
 			return nil, err
@@ -244,7 +238,7 @@ func (i *interpreter) runRepeatWhileStmt(scope *GooseScope, stmt *ast.RepeatWhil
 func (i *interpreter) runRepeatForeverStmt(scope *GooseScope, stmt *ast.RepeatForeverStmt) (result StmtResult, err error) {
 	defer un(trace(i, "repeat forever stmt"))
 	for {
-		repeatScope := scope.new(ScopeOwnerRepeat)
+		repeatScope := scope.fork(ScopeOwnerRepeat)
 		result, err = i.runStmts(repeatScope, stmt.Body)
 		if err != nil {
 			return nil, err
@@ -272,25 +266,20 @@ func (interp *interpreter) runForStmt(scope *GooseScope, stmt *ast.ForStmt) (res
 
 	switch iterable.Type {
 	case GooseTypeString:
-		chars := []rune(iterable.Value.(string))
-		for _, char := range chars {
-			iterVal = append(iterVal, &GooseValue{
-				Constant: false,
-				Type:     GooseTypeString,
-				Value:    string(char),
-			})
+		for _, char := range iterable.Value.(string) {
+			iterVal = append(iterVal, wrap(string(char)))
 		}
 	case GooseTypeArray:
 		var ok bool
 		iterVal, ok = iterable.Value.([]*GooseValue)
 		if !ok {
-			return nil, fmt.Errorf("for loop iterable must be...iterable")
+			return nil, fmt.Errorf("for loop iterable must be... iterable")
 		}
 	}
 
 	name := stmt.Var.Name
 	for i := 0; i < len(iterVal); i++ {
-		forScope := scope.new(ScopeOwnerFor)
+		forScope := scope.fork(ScopeOwnerFor)
 		forScope.set(name, GooseValue{
 			Constant: false,
 			Type:     typeOf(iterVal[i]),
@@ -361,31 +350,10 @@ func (i *interpreter) runAssignStmt(scope *GooseScope, stmt *ast.AssignStmt) (re
 		return nil, err
 	}
 
-	isIdent, ident, existing, index, err := i.getAssignIdentOrIndex(stmt.Lhs, scope)
-	if err != nil {
-		return nil, err
-	}
-
-	newValue, err := i.evalBinaryValues(existing, stmt.Tok, rhs)
-	if err != nil {
-		return nil, err
-	}
-
-	if isIdent {
-		scope.update(ident, *newValue)
-	} else {
-		existing.Value.([]*GooseValue)[index] = newValue
-	}
-
-	return &VoidResult{}, nil
-}
-
-func (i *interpreter) getAssignIdentOrIndex(expr ast.Expr, scope *GooseScope) (isIdent bool, ident string, existing *GooseValue, index int, err error) {
-	switch expr := expr.(type) {
+	switch lhs := stmt.Lhs.(type) {
 	case *ast.Ident:
-		isIdent = true
-		ident = expr.Name
-		existing = scope.get(ident)
+		ident := lhs.Name
+		existing := scope.get(ident)
 		if existing == nil {
 			err = fmt.Errorf("%s is not defined", ident)
 			return
@@ -394,40 +362,35 @@ func (i *interpreter) getAssignIdentOrIndex(expr ast.Expr, scope *GooseScope) (i
 			err = fmt.Errorf("cannot assign to constant %s", ident)
 			return
 		}
-	case *ast.IndexExpr:
-		isIdent = false
-		existing, err = i.evalExpr(scope, expr.X)
+		newValue, err := i.evalBinaryValues(existing, stmt.Tok, rhs)
 		if err != nil {
-			return
+			return nil, err
 		}
-		err = i.expectType(existing, GooseTypeArray)
+
+		scope.update(ident, *newValue)
+	case *ast.BracketSelectorExpr:
+		existing, err := i.evalExpr(scope, lhs.X)
 		if err != nil {
-			return
+			return nil, err
 		}
+
 		if existing.Constant {
-			err = fmt.Errorf("cannot assign to constant %s", ident)
-			return
+			err = fmt.Errorf("cannot assign to constant %s", lhs.X)
+			return nil, err
 		}
-		var idx *GooseValue
-		idx, err = i.evalExpr(scope, expr.Index)
+
+		sel, err := i.evalExpr(scope, lhs.Sel)
 		if err != nil {
-			return
+			return nil, err
 		}
-		err = i.expectType(idx, GooseTypeNumeric)
+
+		err = setProperty(existing, sel, rhs)
 		if err != nil {
-			return
+			return nil, err
 		}
-		index = toInt(idx.Value)
-		if index >= len(existing.Value.([]*GooseValue)) {
-			err = fmt.Errorf("index %d out of bounds for array of length %d", index, len(existing.Value.([]*GooseValue)))
-			return
-		}
-	default:
-		err = fmt.Errorf("left hand side of assignment must be an identifier or index expression")
-		return
 	}
 
-	return
+	return &VoidResult{}, nil
 }
 
 func (i *interpreter) runConstStmt(scope *GooseScope, stmt *ast.ConstStmt) (result StmtResult, err error) {
@@ -476,11 +439,7 @@ func (i *interpreter) runLetStmt(scope *GooseScope, stmt *ast.LetStmt) (result S
 	}
 
 	if value == nil {
-		value = &GooseValue{
-			Constant: false,
-			Type:     GooseTypeNull,
-			Value:    nil,
-		}
+		value = null
 	}
 
 	scope.set(stmt.Ident.Name, GooseValue{
@@ -503,38 +462,61 @@ func (i *interpreter) runExprStmt(scope *GooseScope, stmt *ast.ExprStmt) (result
 
 func (i *interpreter) runIncDecStmt(scope *GooseScope, stmt *ast.IncDecStmt) (result *VoidResult, err error) {
 	defer un(trace(i, "inc/dec stmt"))
-	isIdent, ident, existing, index, err := i.getAssignIdentOrIndex(stmt.X, scope)
-	if err != nil {
-		return nil, err
-	}
+	switch lhs := stmt.X.(type) {
+	case *ast.Ident:
+		ident := lhs.Name
+		existing := scope.get(ident)
+		if existing == nil {
+			err = fmt.Errorf("%s is not defined", ident)
+			return
+		}
+		if existing.Constant {
+			err = fmt.Errorf("cannot assign to constant %s", ident)
+			return
+		}
+		if err = expectType(existing, GooseTypeInt); err != nil {
+			return
+		}
 
-	var value *GooseValue
-	if isIdent {
-		value = existing
-	} else {
-		value = existing.Value.([]*GooseValue)[index]
-	}
+		newValue, err := i.evalBinaryValues(existing, stmt.Tok, wrap(1))
+		if err != nil {
+			return nil, err
+		}
 
-	err = i.expectType(value, GooseTypeNumeric)
-	if err != nil {
-		return
-	}
-
-	newValue, err := i.evalBinaryValues(value, stmt.Tok, &GooseValue{
-		Constant: false,
-		Type:     GooseTypeInt,
-		Value:    int64(1),
-	})
-
-	if err != nil {
-		return
-	}
-
-	if isIdent {
 		scope.update(ident, *newValue)
-	} else {
-		existing.Value.([]*GooseValue)[index] = newValue
-	}
+	case *ast.BracketSelectorExpr:
+		obj, err := i.evalExpr(scope, lhs.X)
+		if err != nil {
+			return nil, err
+		}
 
+		if obj.Constant {
+			return nil, fmt.Errorf("cannot assign to constant %s", lhs.X)
+		}
+
+		sel, err := i.evalExpr(scope, lhs.Sel)
+		if err != nil {
+			return nil, err
+		}
+
+		existing, err := getProperty(obj, sel)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := expectType(existing, GooseTypeInt); err != nil {
+			return nil, err
+		}
+
+		newValue, err := i.evalBinaryValues(existing, stmt.Tok, wrap(1))
+		if err != nil {
+			return nil, err
+		}
+
+		err = setProperty(obj, sel, newValue)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &VoidResult{}, nil
 }

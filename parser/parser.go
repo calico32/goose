@@ -3,7 +3,6 @@ package parser
 import (
 	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/wiisportsresort/goose/ast"
 	"github.com/wiisportsresort/goose/scanner"
@@ -23,11 +22,11 @@ type Parser struct {
 	tok token.Token
 	lit string
 
-	syncPos   token.Pos
-	syncCount int
+	// syncPos   token.Pos
+	// syncCount int
 
-	exprLev int // < 0: in control clause, >= 0: in expression
-	inRhs   bool
+	// exprLev int // < 0: in control clause, >= 0: in expression
+	// inRhs   bool
 }
 
 func (p *Parser) init(fset *token.FileSet, filename string, src []byte, trace io.Writer) {
@@ -50,7 +49,7 @@ func (p *Parser) printTrace(a ...any) {
 	fmt.Fprintf(p.traceWriter, "%5d:%3d: ", pos.Line, pos.Column)
 	i := 2 * p.indent
 	for i > n {
-		fmt.Fprintf(p.traceWriter, dots)
+		fmt.Fprint(p.traceWriter, dots)
 		i -= n
 	}
 	// i <= n
@@ -162,16 +161,16 @@ func (p *Parser) parseIdent() *ast.Ident {
 	return &ast.Ident{NamePos: pos, Name: name}
 }
 
-func (p *Parser) parseParameters() (params *ast.FieldList) {
+func (p *Parser) parseParameters() (params *ast.FuncParamList) {
 	if p.trace {
 		defer un(trace(p, "Parameters"))
 	}
 
 	opening := p.expect(token.LParen)
-	var fields []*ast.Field
+	var fields []*ast.FuncParam
 	for p.tok != token.RParen {
 		ident := p.parseIdent()
-		f := &ast.Field{Ident: ident}
+		f := &ast.FuncParam{Ident: ident}
 		if p.tok == token.Assign {
 			p.next()
 			f.Value = p.parseExpr()
@@ -184,7 +183,7 @@ func (p *Parser) parseParameters() (params *ast.FieldList) {
 	}
 
 	rparen := p.expect(token.RParen)
-	params = &ast.FieldList{Opening: opening, List: fields, Closing: rparen}
+	params = &ast.FuncParamList{Opening: opening, List: fields, Closing: rparen}
 
 	return
 }
@@ -270,10 +269,10 @@ func (p *Parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 		p.errorExpected(p.pos, "expression")
 		rbrack := p.pos
 		p.next()
-		return &ast.IndexExpr{
+		return &ast.BracketSelectorExpr{
 			X:      x,
 			LBrack: lbrack,
-			Index:  &ast.BadExpr{From: lbrack, To: rbrack},
+			Sel:    &ast.BadExpr{From: lbrack, To: rbrack},
 			RBrack: rbrack,
 		}
 	}
@@ -319,10 +318,10 @@ func (p *Parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 		}
 	}
 
-	return &ast.IndexExpr{
+	return &ast.BracketSelectorExpr{
 		X:      x,
 		LBrack: lbrack,
-		Index:  left,
+		Sel:    left,
 		RBrack: rbrack,
 	}
 }
@@ -382,25 +381,15 @@ func (p *Parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
 
 	for {
 		switch p.tok {
-		case token.Int:
-			if x, ok := x.(*ast.ArrayLiteral); ok && len(x.List) == 0 {
-				nulls := []ast.Expr{}
-				count, err := strconv.Atoi(p.lit)
-				if err != nil {
-					p.error(p.pos, "invalid array length")
-				}
-				for i := 0; i < count; i++ {
-					nulls = append(nulls, &ast.Literal{Kind: token.Null})
-				}
-				x.List = nulls
-				p.next()
-			}
 		case token.LParen:
 			x = p.parseCall(x)
 		case token.LBracket:
 			x = p.parseIndexOrSlice(x)
+		case token.Period:
+			x = p.parseSelectorExpr(x)
+		default:
+			return x
 		}
-		return x
 	}
 }
 
@@ -429,6 +418,9 @@ func (p *Parser) parseOperand() ast.Expr {
 		x := p.parseExpr()
 		rparen := p.expect(token.RParen)
 		return &ast.ParenExpr{Lparen: lparen, X: x, Rparen: rparen}
+	case token.LBrace:
+		x := p.parseComposite()
+		return x
 	}
 
 	pos := p.pos
@@ -544,6 +536,84 @@ func (p *Parser) parseArrayLitOrInitializer() (s ast.Expr) {
 		Opening: lbracket,
 		List:    list,
 		Closing: rbracket,
+	}
+}
+
+func (p *Parser) parseComposite() (s *ast.CompositeLiteral) {
+	if p.trace {
+		defer un(trace(p, "CompositeLiteral"))
+	}
+
+	lbrace := p.expect(token.LBrace)
+
+	var list []*ast.CompositeField
+
+	for p.tok != token.RBrace && p.tok != token.EOF {
+		list = append(list, p.parseCompositeField())
+		if p.tok != token.RBrace {
+			p.expect(token.Comma)
+		}
+	}
+
+	rbrace := p.expect(token.RBrace)
+
+	return &ast.CompositeLiteral{
+		Lbrace: lbrace,
+		Fields: list,
+		Rbrace: rbrace,
+	}
+}
+
+func (p *Parser) parseCompositeField() (s *ast.CompositeField) {
+	if p.trace {
+		defer un(trace(p, "CompositeField"))
+	}
+
+	var key ast.Expr
+	var value ast.Expr
+
+	if p.tok == token.LBracket {
+		p.next()
+		key = p.parseExpr()
+		p.expect(token.RBracket)
+	} else if p.tok == token.StringStart {
+		key = p.parseString()
+	} else if p.tok == token.Int || p.tok == token.Float {
+		key = &ast.Literal{Value: p.lit, ValuePos: p.pos, Kind: p.tok}
+		p.next()
+	} else {
+		ident := p.parseIdent()
+		key = &ast.StringLiteral{
+			StringStart: &ast.StringLiteralStart{
+				Quote:   token.Pos(int(ident.Pos()) - 1),
+				Content: ident.Name,
+			},
+			StringEnd: &ast.StringLiteralEnd{
+				StartPos: token.Pos(int(ident.End()) - 1),
+				Quote:    token.Pos(int(ident.End()) + 1),
+			},
+		}
+	}
+
+	p.expect(token.Colon)
+	value = p.parseExpr()
+
+	return &ast.CompositeField{
+		Key:   key,
+		Value: value,
+	}
+}
+
+func (p *Parser) parseSelectorExpr(c ast.Expr) ast.Expr {
+	if p.trace {
+		defer un(trace(p, "SelectorExpr"))
+	}
+
+	p.expect(token.Period)
+
+	return &ast.SelectorExpr{
+		X:   c,
+		Sel: p.parseIdent(),
 	}
 }
 

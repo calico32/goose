@@ -1,5 +1,7 @@
 package main
 
+//lint:file-ignore U1000 tinygo
+
 import (
 	"encoding/binary"
 	"fmt"
@@ -30,7 +32,7 @@ func ptrToString(ptr uint32, size uint32) (ret string) {
 	// wanted a []byte, we'd use reflect.SliceHeader instead.
 	strHdr := (*reflect.StringHeader)(unsafe.Pointer(&ret))
 	strHdr.Data = uintptr(ptr)
-	strHdr.Len = uintptr(size)
+	strHdr.Len = int(uintptr(size))
 	return
 }
 

@@ -26,21 +26,25 @@ func (i *interpreter) evalExpr(scope *GooseScope, expr ast.Expr) (result *GooseV
 		return i.evalIdent(scope, expr)
 	case *ast.StringLiteral:
 		return i.evalString(scope, expr)
+	case *ast.CompositeLiteral:
+		return i.evalCompositeLiteral(scope, expr)
 	case *ast.ArrayLiteral:
 		return i.evalArrayLiteral(scope, expr)
 	case *ast.ArrayInitializer:
 		return i.evalArrayInitializer(scope, expr)
-	case *ast.IndexExpr:
-		return i.evalIndexExpr(scope, expr)
+	case *ast.SelectorExpr:
+		return i.evalSelectorExpr(scope, expr)
+	case *ast.BracketSelectorExpr:
+		return i.evalBracketSelectorExpr(scope, expr)
 	case *ast.SliceExpr:
 		return i.evalSliceExpr(scope, expr)
 	case *ast.Literal:
 		return i.evalLiteral(scope, expr)
 	default:
 		if badExpr, ok := expr.(*ast.BadExpr); ok {
-			return nil, fmt.Errorf("Unexpected bad expression %#v", badExpr)
+			return nil, fmt.Errorf("unexpected bad expression %#v", badExpr)
 		}
-		return nil, fmt.Errorf("Unexpected expression type %T", expr)
+		return nil, fmt.Errorf("unexpected expression type %T", expr)
 	}
 }
 
@@ -65,10 +69,7 @@ func (i *interpreter) evalLiteral(scope *GooseScope, expr *ast.Literal) (*GooseV
 			return nil, err
 		}
 
-		return &GooseValue{
-			Type:  GooseTypeInt,
-			Value: val,
-		}, nil
+		return wrap(val), nil
 
 	case token.Float:
 		val, err := strconv.ParseFloat(expr.Value, 64)
@@ -76,16 +77,10 @@ func (i *interpreter) evalLiteral(scope *GooseScope, expr *ast.Literal) (*GooseV
 			return nil, err
 		}
 
-		return &GooseValue{
-			Type:  GooseTypeFloat,
-			Value: val,
-		}, nil
+		return wrap(val), nil
 
 	case token.Null:
-		return &GooseValue{
-			Type:  GooseTypeNull,
-			Value: nil,
-		}, nil
+		return null, nil
 
 	default:
 		return nil, fmt.Errorf("unexpected literal kind %s", expr.Kind)
@@ -111,7 +106,7 @@ func (i *interpreter) evalBinaryExpr(scope *GooseScope, expr *ast.BinaryExpr) (*
 func (i *interpreter) evalBinaryValues(left *GooseValue, op token.Token, right *GooseValue) (*GooseValue, error) {
 	defer un(trace(i, "binary values"))
 
-	var result bool
+	var boolResult bool
 	switch op {
 	case token.Assign:
 		return right, nil
@@ -119,16 +114,9 @@ func (i *interpreter) evalBinaryValues(left *GooseValue, op token.Token, right *
 		if left.Type == GooseTypeArray {
 			values := left.Value.([]*GooseValue)
 			values = append(values, right)
-			return &GooseValue{
-				Constant: false,
-				Type:     GooseTypeArray,
-				Value:    values,
-			}, nil
+			return wrap(values), nil
 		} else if left.Type == GooseTypeString || right.Type == GooseTypeString {
-			return &GooseValue{
-				Type:  GooseTypeString,
-				Value: fmt.Sprintf("%v", left.Value) + fmt.Sprintf("%v", right.Value),
-			}, nil
+			return wrap(fmt.Sprintf("%v", left.Value) + fmt.Sprintf("%v", right.Value)), nil
 		}
 		fallthrough
 	case token.Lt, token.Lte, token.Gt, token.Gte,
@@ -136,23 +124,20 @@ func (i *interpreter) evalBinaryValues(left *GooseValue, op token.Token, right *
 		token.SubAssign, token.MulAssign, token.QuoAssign, token.RemAssign, token.PowAssign,
 		token.Inc, token.Dec:
 		return i.numericOperation(left, op, right)
+
 	case token.Eq:
-		result = left.Type == right.Type && left.Value == right.Value
+		boolResult = left.Type == right.Type && left.Value == right.Value
 	case token.Neq:
-		result = left.Type != right.Type || left.Value != right.Value
+		boolResult = left.Type != right.Type || left.Value != right.Value
 	case token.LogAnd:
-		result = isTruthy(left.Value) && isTruthy(right.Value)
+		boolResult = isTruthy(left.Value) && isTruthy(right.Value)
 	case token.LogOr:
-		result = isTruthy(left.Value) || isTruthy(right.Value)
+		boolResult = isTruthy(left.Value) || isTruthy(right.Value)
 	default:
 		return nil, fmt.Errorf("unexpected binary operator %s", op)
 	}
 
-	return &GooseValue{
-		Constant: false,
-		Type:     GooseTypeBool,
-		Value:    result,
-	}, nil
+	return wrap(boolResult), nil
 }
 
 func (i *interpreter) evalUnaryExpr(scope *GooseScope, expr *ast.UnaryExpr) (*GooseValue, error) {
@@ -165,40 +150,27 @@ func (i *interpreter) evalUnaryExpr(scope *GooseScope, expr *ast.UnaryExpr) (*Go
 
 	switch expr.Op {
 	case token.LogNot:
-		return &GooseValue{
-			Constant: false,
-			Type:     GooseTypeBool,
-			Value:    !isTruthy(value.Value),
-		}, nil
+		return wrap(!isTruthy(value.Value)), nil
 	case token.Add:
-		err = i.expectType(value, GooseTypeNumeric)
+		err = expectType(value, GooseTypeNumeric)
 		if err != nil {
 			return nil, err
 		}
 		return &GooseValue{
-			Constant: false,
-			Type:     value.Type,
-			Value:    value.Value,
+			Type:  value.Type,
+			Value: value.Value,
 		}, nil
 	case token.Sub:
-		err = i.expectType(value, GooseTypeNumeric)
+		err = expectType(value, GooseTypeNumeric)
 		if err != nil {
 			return nil, err
 		}
 
 		if value.Type == GooseTypeInt {
-			return &GooseValue{
-				Constant: false,
-				Type:     GooseTypeInt,
-				Value:    -value.Value.(int64),
-			}, nil
+			return wrap(-value.Value.(int64)), nil
 		}
 
-		return &GooseValue{
-			Constant: false,
-			Type:     GooseTypeFloat,
-			Value:    -value.Value.(float64),
-		}, nil
+		return wrap(-value.Value.(float64)), nil
 
 	default:
 		return nil, fmt.Errorf("unexpected unary operator %s", expr.Op)
@@ -236,11 +208,7 @@ func (i *interpreter) evalCallExpr(scope *GooseScope, expr *ast.CallExpr) (*Goos
 		return v, nil
 	}
 
-	return &GooseValue{
-		Constant: false,
-		Type:     typeOf(result.value),
-		Value:    result.value,
-	}, nil
+	return wrap(result.value), nil
 }
 
 func (i *interpreter) evalIdent(scope *GooseScope, expr *ast.Ident) (*GooseValue, error) {
@@ -254,6 +222,7 @@ func (i *interpreter) evalIdent(scope *GooseScope, expr *ast.Ident) (*GooseValue
 	return val, nil
 }
 
+// alex was here
 func (i *interpreter) evalString(scope *GooseScope, expr *ast.StringLiteral) (*GooseValue, error) {
 	defer un(trace(i, "string"))
 
@@ -282,11 +251,48 @@ func (i *interpreter) evalString(scope *GooseScope, expr *ast.StringLiteral) (*G
 
 	value += expr.StringEnd.Content
 
-	return &GooseValue{
-		Constant: false,
-		Type:     GooseTypeString,
-		Value:    value,
-	}, nil
+	return wrap(value), nil
+}
+
+func (i *interpreter) evalCompositeLiteral(scope *GooseScope, expr *ast.CompositeLiteral) (*GooseValue, error) {
+	defer un(trace(i, "composite literal"))
+
+	composite := make(GooseComposite)
+	for _, field := range expr.Fields {
+		var keyValue interface{}
+		switch key := field.Key.(type) {
+		case *ast.Ident:
+			keyValue = key.Name
+		case *ast.StringLiteral:
+			k, err := i.evalString(scope, key)
+			if err != nil {
+				return nil, err
+			}
+
+			keyValue = k.Value
+		default:
+			lit, err := i.evalExpr(scope, key)
+			if err != nil {
+				return nil, err
+			}
+
+			switch lit.Type {
+			case GooseTypeInt, GooseTypeFloat, GooseTypeBool, GooseTypeString:
+				keyValue = lit.Value
+			default:
+				return nil, fmt.Errorf("unexpected composite literal key type %s", lit.Type)
+			}
+		}
+
+		val, err := i.evalExpr(scope, field.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		composite[keyValue] = val
+	}
+
+	return wrap(composite), nil
 }
 
 func (i *interpreter) evalArrayLiteral(scope *GooseScope, expr *ast.ArrayLiteral) (*GooseValue, error) {
@@ -302,11 +308,7 @@ func (i *interpreter) evalArrayLiteral(scope *GooseScope, expr *ast.ArrayLiteral
 		values = append(values, val)
 	}
 
-	return &GooseValue{
-		Constant: false,
-		Type:     GooseTypeArray,
-		Value:    values,
-	}, nil
+	return wrap(values), nil
 }
 
 func (i *interpreter) evalArrayInitializer(scope *GooseScope, expr *ast.ArrayInitializer) (*GooseValue, error) {
@@ -332,15 +334,11 @@ func (i *interpreter) evalArrayInitializer(scope *GooseScope, expr *ast.ArrayIni
 			values = append(values, value)
 		}
 
-		return &GooseValue{
-			Constant: false,
-			Type:     GooseTypeArray,
-			Value:    values,
-		}, nil
+		return wrap(values), nil
 	}
 
 	for idx := int64(0); idx < countVal; idx++ {
-		newScope := scope.new(ScopeOwnerArrayInit)
+		newScope := scope.fork(ScopeOwnerArrayInit)
 		newScope.set("_", GooseValue{
 			Constant: true,
 			Type:     GooseTypeInt,
@@ -355,53 +353,36 @@ func (i *interpreter) evalArrayInitializer(scope *GooseScope, expr *ast.ArrayIni
 		values = append(values, val)
 	}
 
-	return &GooseValue{
-		Constant: false,
-		Type:     GooseTypeArray,
-		Value:    values,
-	}, nil
+	return wrap(values), nil
 }
 
-func (i *interpreter) evalIndexExpr(scope *GooseScope, expr *ast.IndexExpr) (*GooseValue, error) {
-	defer un(trace(i, "index expression"))
+func (i *interpreter) evalSelectorExpr(scope *GooseScope, expr *ast.SelectorExpr) (*GooseValue, error) {
+	defer un(trace(i, "selector expr"))
 
-	left, err := i.evalExpr(scope, expr.X)
+	x, err := i.evalExpr(scope, expr.X)
 	if err != nil {
 		return nil, err
 	}
 
-	right, err := i.evalExpr(scope, expr.Index)
+	sel := wrap(expr.Sel.Name)
+
+	return getProperty(x, sel)
+}
+
+func (i *interpreter) evalBracketSelectorExpr(scope *GooseScope, expr *ast.BracketSelectorExpr) (*GooseValue, error) {
+	defer un(trace(i, "bracket selector expr"))
+
+	x, err := i.evalExpr(scope, expr.X)
 	if err != nil {
 		return nil, err
 	}
 
-	if left.Type != GooseTypeArray {
-		return nil, fmt.Errorf("cannot index non-array type %s", left.Type)
-	}
-
-	if err := i.expectType(right, GooseTypeNumeric); err != nil {
+	sel, err := i.evalExpr(scope, expr.Sel)
+	if err != nil {
 		return nil, err
 	}
 
-	values := left.Value.([]*GooseValue)
-
-	idx := right.Value.(int64)
-
-	if idx >= int64(len(values)) {
-		return nil, fmt.Errorf("index %d out of bounds", idx)
-	}
-
-	if idx < 0 {
-		idx = int64(len(values)) + idx
-		if idx < 0 {
-			idx = 0
-		}
-		if idx >= int64(len(values)) {
-			return nil, fmt.Errorf("index %d out of bounds", right.Value.(int64))
-		}
-	}
-
-	return values[idx], nil
+	return getProperty(x, sel)
 }
 
 func (i *interpreter) evalSliceExpr(scope *GooseScope, expr *ast.SliceExpr) (*GooseValue, error) {
@@ -426,7 +407,7 @@ func (i *interpreter) evalSliceExpr(scope *GooseScope, expr *ast.SliceExpr) (*Go
 			return nil, err
 		}
 
-		if err := i.expectType(begin, GooseTypeNumeric); err != nil {
+		if err := expectType(begin, GooseTypeNumeric); err != nil {
 			return nil, err
 		}
 
@@ -450,7 +431,7 @@ func (i *interpreter) evalSliceExpr(scope *GooseScope, expr *ast.SliceExpr) (*Go
 			return nil, err
 		}
 
-		if err := i.expectType(endVal, GooseTypeNumeric); err != nil {
+		if err := expectType(endVal, GooseTypeNumeric); err != nil {
 			return nil, err
 		}
 
@@ -479,9 +460,5 @@ func (i *interpreter) evalSliceExpr(scope *GooseScope, expr *ast.SliceExpr) (*Go
 		end = int64(len(values))
 	}
 
-	return &GooseValue{
-		Constant: false,
-		Type:     GooseTypeArray,
-		Value:    values[start:end],
-	}, nil
+	return wrap(values[start:end]), nil
 }
