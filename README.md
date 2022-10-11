@@ -210,9 +210,9 @@ arr[3:1]   // error
 
 ## Composites
 
-Composites are "JS-like objects" that can be used to map keys to values. They are written using curly braces `{}`. 
+Composites are "JS-like objects" that can be used to map keys to values. They are written using curly braces `{}`. Fields are unordered and do not maintain an insertion order.
 
-Keys can be strings or numbers, and values can be any data type. Keys must be unique. Arbitrary expressions can be used as keys with square brackets `[]`. Fields are separated by commas `,`. A trailing comma is allowed.
+Keys can be strings or numbers, and values can be any data type. Keys must be unique. Arbitrary expressions can be used as keys with square brackets `[]`. Fields are separated by commas `,`. A trailing comma is allowed. 
 
 ```js
 let key1 = "some key value"
@@ -461,23 +461,23 @@ print(fibMemoCalls) // 11
 
 The following functions are available in the global scope:
 
-| Signature                    | Description                                                                      |
-| ---------------------------- | -------------------------------------------------------------------------------- |
-| `print(...any)`              | Prints the arguments to the console, separated by spaces, followed by a newline. |
-| `printf(fmt, ...any)`        | Prints the arguments to the console, formatted according Golang's `fmt.Printf`.  |
-| `join(arr, sep=",")`         | Joins the elements of an array into a string.                                    |
-| `round(num)`                 | Rounds a number to the nearest integer.                                          |
-| `floor(num)`                 | Rounds a number down to the nearest integer.                                     |
-| `ceil(num)`                  | Rounds a number up to the nearest integer.                                       |
-| `exit(code=0)`               | Exits the program with the given exit code.                                      |
-| `nano()`                     | Returns the current time in nanoseconds.                                         |
-| `milli()`                    | Returns the current time in milliseconds.                                        |
-| `sleep(ms)`                  | Sleeps for the given number of milliseconds.                                     |
-| `len(arr)`                   | Returns the length of an array.                                                  |
-| `indices(arr)`               | Returns an array of integers from 0 to the length of the array.                  |
-| `padLeft(str, len, ch=" ")`  | Pads the beginning of a string with the given character.                         |
-| `padRight(str, len, ch=" ")` | Pads the end of a string with the given character.                               |
-| `keys(comp)`                 | Returns an array of the keys of the composite.                                   |
-| `values(comp)`               | Returns an array of the values of the composite.                                 |
+| Signature                    | Description                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------- |
+| `print(...any)`              | Prints the arguments to the console, separated by spaces, followed by a newline.       |
+| `printf(fmt, ...any)`        | Prints the arguments to the console, formatted according Golang's `fmt.Printf`.        |
+| `join(arr, sep=",")`         | Joins the elements of an array into a string.                                          |
+| `round(num)`                 | Rounds a number to the nearest integer.                                                |
+| `floor(num)`                 | Rounds a number down to the nearest integer.                                           |
+| `ceil(num)`                  | Rounds a number up to the nearest integer.                                             |
+| `exit(code=0)`               | Exits the program with the given exit code.                                            |
+| `nano()`                     | Returns the current time in nanoseconds.                                               |
+| `milli()`                    | Returns the current time in milliseconds.                                              |
+| `sleep(ms)`                  | Sleeps for the given number of milliseconds.                                           |
+| `len(arr)`                   | Returns the length of an array.                                                        |
+| `indices(arr)`               | Returns an array of integers from 0 to the length of the array.                        |
+| `padLeft(str, len, ch=" ")`  | Pads the beginning of a string with the given character.                               |
+| `padRight(str, len, ch=" ")` | Pads the end of a string with the given character.                                     |
+| `keys(comp)`                 | Returns an array of the keys of the composite.  Keys may not be in insertion order.    |
+| `values(comp)`               | Returns an array of the values of the composite. Values may not be in insertion order. |
 
 The standard library functions are not constants and can be overwritten.

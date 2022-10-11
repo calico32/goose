@@ -259,7 +259,7 @@ var stdlib = map[string]GooseFunc{
 			return nil, err
 		}
 
-		keys := make([]*GooseValue, len(composite.Value.(GooseComposite)))
+		keys := []*GooseValue{}
 		for k := range composite.Value.(GooseComposite) {
 			keys = append(keys, wrap(k))
 		}
@@ -276,7 +276,7 @@ var stdlib = map[string]GooseFunc{
 			return nil, err
 		}
 
-		values := make([]*GooseValue, len(composite.Value.(GooseComposite)))
+		values := []*GooseValue{}
 		for _, v := range composite.Value.(GooseComposite) {
 			values = append(values, v)
 		}
