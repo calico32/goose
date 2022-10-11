@@ -747,11 +747,13 @@ func (p *Parser) parseReturnStmt() *ast.ReturnStmt {
 	pos := p.pos
 	p.expect(token.Return)
 	var x ast.Expr
-	if p.tok != token.End && p.tok != token.EOF {
+	if token.IsKeyword(p.tok.String()) {
+		// return null
+		return &ast.ReturnStmt{Return: pos}
+	} else {
 		x = p.parseExpr()
+		return &ast.ReturnStmt{Return: pos, Result: x}
 	}
-
-	return &ast.ReturnStmt{Return: pos, Result: x}
 }
 
 func (p *Parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {

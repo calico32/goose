@@ -335,10 +335,18 @@ func (i *interpreter) runIfStmt(scope *GooseScope, stmt *ast.IfStmt) (result Stm
 
 func (i *interpreter) runReturnStmt(scope *GooseScope, stmt *ast.ReturnStmt) (result StmtResult, err error) {
 	defer un(trace(i, "return stmt"))
-	ret, err := i.evalExpr(scope, stmt.Result)
-	if err != nil {
-		return nil, err
+
+	var ret *GooseValue
+
+	if stmt.Result == nil {
+		ret = nil
+	} else {
+		ret, err = i.evalExpr(scope, stmt.Result)
+		if err != nil {
+			return
+		}
 	}
+
 	return &ReturnResult{ret}, nil
 }
 
