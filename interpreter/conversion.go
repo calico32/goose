@@ -47,6 +47,9 @@ func toFloat(value any) float64 {
 func toString(x any) string {
 	switch x := x.(type) {
 	case *GooseValue:
+		if x == nil {
+			return "<nil>"
+		}
 		return toString(x.Value)
 	case []*GooseValue:
 		var output strings.Builder
