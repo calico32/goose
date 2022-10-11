@@ -136,7 +136,7 @@ The following escapes can be used in a string:
 | `\$`         | U+0024 dollar sign          |
 | `\\`         | U+005C backslash            |
 | `\a`         | U+0007 alert                |
-| `\b`         | U+0008 backslash            |
+| `\b`         | U+0008 backspace            |
 | `\n`         | U+000A line feed (lf)       |
 | `\t`         | U+0009 tab                  |
 | `\v`         | U+000B vertical tab         |
