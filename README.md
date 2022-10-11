@@ -10,7 +10,8 @@
   - [Less urgent](#less-urgent)
 - [Language description](#language-description)
   - [Comments](#comments)
-  - [Variables and data types](#variables-and-data-types)
+  - [Variables](#variables)
+  - [Data types](#data-types)
   - [Strings](#strings)
   - [Arrays](#arrays)
     - [Array initializers](#array-initializers)
@@ -92,7 +93,7 @@ Single line `//` comments and multi-line `/* */` comments are supported. Multi-l
 */
 ```
 
-## Variables and data types
+## Variables
 
 Variables are declared with `let` or `const`, in the following manner: 
 ```js
@@ -104,15 +105,20 @@ Attempting to modify a constant variable (including modifying arrays and composi
 
 Variables are not restricted to one type and can be changed to any type later on.
 
+## Data types
+
 The following data types are available:
 
-| Type      | Description                                   |
-| --------- | --------------------------------------------- |
-| int       | 64-bit signed integer                         |
-| float     | IEEE 754 64-bit floating point number         |
-| string    | a string                                      |
-| array     | an array of any data type                     |
-| composite | generic "JS object" - a map of keys to values |
+| Type      | String        | Description                                   |
+| --------- | ------------- | --------------------------------------------- |
+| null      | `"null"`      | the absence of a value                        |
+| int       | `"int"`       | 64-bit signed integer                         |
+| float     | `"float"`     | IEEE 754 64-bit floating point number         |
+| bool      | `"bool"`      | `true` or `false`                             |
+| string    | `"string"`    | a string of characters                        |
+| array     | `"array"`     | an array of any data type                     |
+| composite | `"composite"` | generic "JS object" - a map of keys to values |
+| function  | `"function"`  | a function                                    |
 
 The following names are reserved and cannot be declared:
 ```
@@ -479,5 +485,6 @@ The following functions are available in the global scope:
 | `padRight(str, len, ch=" ")` | Pads the end of a string with the given character.                                     |
 | `keys(comp)`                 | Returns an array of the keys of the composite.  Keys may not be in insertion order.    |
 | `values(comp)`               | Returns an array of the values of the composite. Values may not be in insertion order. |
+| `typeof(any)`                | Returns the type of the given value, based on the [table above](#data-types).          |
 
 The standard library functions are not constants and can be overwritten.

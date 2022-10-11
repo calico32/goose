@@ -51,7 +51,6 @@ const (
 	GooseTypeMutableIndexable = GooseTypeArray | GooseTypeComposite
 )
 
-type GooseArray []*GooseValue
 type GooseComposite map[any]*GooseValue
 type GooseFunc func(*GooseScope, []*GooseValue) (*ReturnResult, error)
 

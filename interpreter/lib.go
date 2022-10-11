@@ -283,6 +283,13 @@ var stdlib = map[string]GooseFunc{
 
 		return &ReturnResult{values}, nil
 	},
+	"typeof": func(_ *GooseScope, args []*GooseValue) (*ReturnResult, error) {
+		if len(args) < 1 {
+			return nil, fmt.Errorf("typeof(value): expected 1 argument")
+		}
+
+		return &ReturnResult{wrap(args[0].Type.String())}, nil
+	},
 }
 
 var builtins = map[string]GooseValue{

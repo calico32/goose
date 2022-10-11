@@ -30,6 +30,9 @@ func isTruthy(value any) bool {
 func valueOf(value any) any {
 	switch value := value.(type) {
 	case *GooseValue:
+		if value == nil {
+			return nil
+		}
 		return valueOf(value.Value)
 	case int: // convert ints to int64s
 		return int64(value)
@@ -43,6 +46,9 @@ func valueOf(value any) any {
 func typeOf(value any) GooseType {
 	switch value := value.(type) {
 	case *GooseValue:
+		if value == nil {
+			return GooseTypeNull
+		}
 		return value.Type
 	case int, int64:
 		return GooseTypeInt
@@ -56,7 +62,7 @@ func typeOf(value any) GooseType {
 		return GooseTypeFunc
 	case string:
 		return GooseTypeString
-	case GooseArray:
+	case []*GooseValue:
 		return GooseTypeArray
 	case GooseComposite:
 		return GooseTypeComposite
