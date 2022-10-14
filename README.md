@@ -6,8 +6,10 @@
 - [goose](#goose)
 - [Table of Contents](#table-of-contents)
 - [Usage](#usage)
+- [Examples](#examples)
 - [Roadmap](#roadmap)
   - [Less urgent](#less-urgent)
+- [Syntax overview](#syntax-overview)
 - [Language description](#language-description)
   - [Comments](#comments)
   - [Variables](#variables)
@@ -51,18 +53,27 @@ Install the `goose` binary in your `$PATH`:
 go install cli/goose.go
 ```
 
+# Examples
+
+See the [`examples`](/examples) directory for some example programs.
+
 # Roadmap
 
 - [ ] speed up loops with many iterations
-- [ ] add composite types
 - [ ] add anonymous functions
 - [ ] explicit type annotations
 - [ ] type casting
+- [ ] exceptions and error handling
+- [ ] user input
 
 ## Less urgent
 
 - [ ] module system, imports/exports
 - [ ] implement compiler
+
+# Syntax overview
+
+For an overview of the current syntax, as well as future plans, see [examples/syntax.goose](/examples/syntax.goose).
 
 # Language description
 
@@ -467,24 +478,24 @@ print(fibMemoCalls) // 11
 
 The following functions are available in the global scope:
 
-| Signature                    | Description                                                                            |
-| ---------------------------- | -------------------------------------------------------------------------------------- |
-| `print(...any)`              | Prints the arguments to the console, separated by spaces, followed by a newline.       |
-| `printf(fmt, ...any)`        | Prints the arguments to the console, formatted according Golang's `fmt.Printf`.        |
-| `join(arr, sep=",")`         | Joins the elements of an array into a string.                                          |
-| `round(num)`                 | Rounds a number to the nearest integer.                                                |
-| `floor(num)`                 | Rounds a number down to the nearest integer.                                           |
-| `ceil(num)`                  | Rounds a number up to the nearest integer.                                             |
-| `exit(code=0)`               | Exits the program with the given exit code.                                            |
-| `nano()`                     | Returns the current time in nanoseconds.                                               |
-| `milli()`                    | Returns the current time in milliseconds.                                              |
-| `sleep(ms)`                  | Sleeps for the given number of milliseconds.                                           |
-| `len(arr)`                   | Returns the length of an array.                                                        |
-| `indices(arr)`               | Returns an array of integers from 0 to the length of the array.                        |
-| `padLeft(str, len, ch=" ")`  | Pads the beginning of a string with the given character.                               |
-| `padRight(str, len, ch=" ")` | Pads the end of a string with the given character.                                     |
-| `keys(comp)`                 | Returns an array of the keys of the composite.  Keys may not be in insertion order.    |
-| `values(comp)`               | Returns an array of the values of the composite. Values may not be in insertion order. |
-| `typeof(any)`                | Returns the type of the given value, based on the [table above](#data-types).          |
+| Signature                    | Description                                                                               |
+| ---------------------------- | ----------------------------------------------------------------------------------------- |
+| `print(...any)`              | Prints the arguments to the console, separated by spaces, followed by a newline.          |
+| `printf(fmt, ...any)`        | Prints the arguments to the console, formatted according Golang's `fmt.Printf`.           |
+| `join(arr, sep=",")`         | Joins the elements of an array into a string.                                             |
+| `round(num)`                 | Rounds a number to the nearest integer.                                                   |
+| `floor(num)`                 | Rounds a number down to the nearest integer.                                              |
+| `ceil(num)`                  | Rounds a number up to the nearest integer.                                                |
+| `exit(code=0)`               | Exits the program with the given exit code.                                               |
+| `nano()`                     | Returns the current time in nanoseconds.                                                  |
+| `milli()`                    | Returns the current time in milliseconds.                                                 |
+| `sleep(ms)`                  | Sleeps for the given number of milliseconds.                                              |
+| `len(arr)`                   | Returns the length of an array.                                                           |
+| `indices(arr)`               | Returns an array of integers from 0 to the length of the array.                           |
+| `padLeft(str, len, ch=" ")`  | Pads the beginning of a string with the given character.                                  |
+| `padRight(str, len, ch=" ")` | Pads the end of a string with the given character.                                        |
+| `keys(comp)`                 | Returns an array of the keys of the composite.  Keys may not be in insertion order.       |
+| `values(comp)`               | Returns an array of the values of the composite. Values may not be in insertion order.    |
+| `typeof(any)`                | Returns the type of the given value as a string, based on the [table above](#data-types). |
 
 The standard library functions are not constants and can be overwritten.
