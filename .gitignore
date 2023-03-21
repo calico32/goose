@@ -4,3 +4,6 @@ test/main.goose
 test/**
 /goose
 .vscode/settings.json
+compiler
+lsp
+llvm

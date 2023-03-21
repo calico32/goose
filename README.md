@@ -37,7 +37,7 @@
 Use `goose/ast`, `goose/scanner`, `goose/parser`, and `goose/interpreter` in your code:
 
 ```sh
-go get github.com/wiisportsresort/goose
+go get github.com/calico32/goose
 ```
 
 Run your code with `cli/goose.go`:

@@ -54,6 +54,10 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 }
 
 func (s *FileSet) Position(pos Pos) Position {
+	if !pos.IsValid() {
+		return Position{Filename: "", Line: 0, Column: 0}
+	}
+
 	var file *File
 	for _, f := range s.files {
 		if f.base <= int(pos) && int(pos) <= f.base+f.size {

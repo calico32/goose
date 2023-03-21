@@ -1,0 +1,280 @@
+digit_excluding_zero = "1".."9" ;
+digit = "0" | digit_excluding_zero ;
+hex_digit = digit | "a".."f" | "A".."F" ;
+octal_digit = "0".."7" ;
+binary_digit = "0" | "1" ;
+letter = "a".."z" | "A".."Z" ;
+
+
+
+number_literal = integer_literal | float_literal ;
+numeric_separator = "_" ;
+
+integer_literal = decimal_literal
+  | octal_literal
+  | hex_literal
+  | binary_literal ;
+
+decimal_literal = digit, { [ numeric_separator ], digit } ;
+octal_literal = "0o", octal_digit, { [ numeric_separator ], octal_digit } ;
+hex_literal = "0x", hex_digit, { [ numeric_separator ], hex_digit } ;
+binary_literal = "0b", binary_digit, { [ numeric_separator ], binary_digit } ;
+
+float_literal = [ decimal_literal ], [ ".", [ decimal_literal ] ], [ exponent_part ];
+exponent_part = ( "e" | "E" ), [ ( "+" | "-" ) ], decimal_literal ;
+
+
+
+boolean_literal = "true" | "false" ;
+
+
+null_literal = "null" ;
+
+
+
+string_literal = '"', { string_character | string_escape | string_expression_interpolation | string_identifier_interpolation }, '"' ;
+
+string_character = ? any character except " or \ ? ;
+string_escape = "\\", (
+  '"' | "\\" | "n" | "r" | "t" | "0" | "$"
+  | ( "x", hex_digit, hex_digit )
+  | ( "o", octal_digit, octal_digit, octal_digit )
+  | ( "u", hex_digit, hex_digit, hex_digit, hex_digit )
+  | ( "U", hex_digit, hex_digit, hex_digit, hex_digit, hex_digit, hex_digit, hex_digit, hex_digit )
+) ;
+
+string_expression_interpolation = "${", expression, "}" ;
+string_identifier_interpolation = "$", identifier ;
+
+
+
+identifier_start_character = letter | "_" ;
+identifier_character = identifier_start_character | digit ;
+identifier = identifier_start_character, { identifier_character } ;
+
+
+
+overloadable_operator = "+" | "-" | "*" | "/" | "%" | "**"
+  | ">" | "<" | ">=" | "<="
+  | "++" | "--"
+  | "?"
+  | "<<" | ">>" | "~" | "|" | "^"
+  | "==" | "!=" | "<=>" ;
+
+operator = overloadable_operator
+  | "+="  | "-=" | "*=" | "/=" | "%=" | "**="
+  | "&&" | "||" | "!" | "??"
+  | "&&=" | "||=" | "??="
+  | "&=" | "|=" | "^=" | "<<=" | ">>="
+  | "::" | "->" | "." ;
+
+prefix_operator = "+" | "-" | "!" | "~" ;
+postfix_operator = "++" | "--" | "?" ;
+
+
+
+file = module ;
+
+module = { statement };
+
+statement = expression
+  | let_statement
+  | const_statement
+  | assign_statement
+  | native_statement
+  | labeled_statement
+  | if_statement
+  | repeat_statement
+  | for_statement
+  | return_statement
+  | yield_statement
+  | branch_statement
+  | struct_statement
+  | inc_dec_statement
+  | export_statement
+  | import_statement
+  | operator_statement
+  | macro_statement ;
+
+expression = binary_expression
+  | unary_expression
+  | paren_expression
+  | call_expression
+  | identifier
+  | string_literal
+  | composite_literal
+  | array_literal
+  | array_initializer
+  | selector_expression
+  | bind_expression
+  | bracket_selector_expression
+  | slice_expression
+  | number_literal
+  | boolean_literal
+  | null_literal
+  | function_expression
+  | if_expression
+  | do_expression
+  | generator_expression
+  | range_expression
+  | match_expression ;
+
+
+
+let_statement = "let", identifier, [ ":", type_expression ], [ "=", expression ] ;
+
+const_statement = "const", identifier, [ ":", type_expression ], "=", expression ;
+
+assign_statement = identifier, "=", expression ;
+
+native_statement = "native", ( let_statement
+                               | const_statement
+                               | function_expression
+                               | struct_statement
+                               | operator_statement
+                               | generator_expression ) ;
+
+labeled_statement = identifier, ":", statement ;
+
+if_statement = "if", expression, { statement }, [ "else", { statement } ], "end" ;
+
+repeat_statement = repeat_count_statement
+  | repeat_while_statement
+  | repeat_forever_statement ;
+
+repeat_count_statement = "repeat", expression, "times", { statement }, "end" ;
+
+repeat_while_statement = "repeat", "while", expression, { statement }, "end" ;
+
+repeat_forever_statement = "repeat", "forever", { statement }, "end" ;
+
+for_statement = "for", identifier, "in", expression, { statement }, "end"  ;
+
+return_statement = "return", [ expression ] ;
+
+yield_statement = "yield", [ expression ] ;
+
+branch_statement = ( "break" | "continue" ), [ identifier ] ;
+
+struct_statement = "struct", identifier, "(", [ struct_field, { ",", struct_field } ], ")", [ "init", { statement }, "end" ] ;
+
+struct_field = [ ":" ], identifier, [ ":", type_expression ], [ "=", expression ] ;
+
+inc_dec_statement = identifier, ( "++" | "--" ) ;
+
+export_statement = "export", (
+  statement
+  | ( "{", [ export_list_item, { ",", export_list_item } ], "}" )
+  | module_spec
+) ;
+
+export_list_item = identifier
+  | ( identifier, "as", identifier ) ;
+
+import_statement = "import", module_spec ;
+
+module_spec = specifier, [
+  ( "as", identifier )
+  | ( "show", module_spec_show )
+] ;
+
+module_spec_show = "..." | ( "{" , [ module_spec_list_item, { ",", module_spec_list_item } ], "}" ) ;
+
+module_spec_list_item = identifier
+  | ( identifier, "as", identifier )
+  | ( "...", identifier ) ;
+
+specifier = string_literal ;
+
+
+
+operator_statement = "operator", identifier, overloadable_operator, "(", [ function_parameter, { ",", function_parameter } ], ")", [ ":", type_expression ], { statement }, "end" ;
+
+
+
+binary_expression = expression, operator, expression ;
+
+unary_expression = ( prefix_operator, expression )
+  | ( expression, postfix_operator ) ;
+
+paren_expression = "(", expression, ")" ;
+
+call_expression = expression, "(", [ expression, { ",", expression } ], ")" ;
+(* TODO: kv pairs in args *)
+
+selector_expression = expression, ".", identifier ;
+
+bind_expression = expression, "::", identifier ;
+
+bracket_selector_expression = expression, "[", expression, "]" ;
+
+slice_expression = expression, "[", (
+  ( expression, ":", expression )
+  | ( ":", expression )
+  | ( expression, ":" )
+), "]" ;
+
+composite_literal = "{", [ composite_literal_item, { ",", composite_literal_item } ], "}" ;
+
+composite_literal_item = ( identifier | ( "[", expression, "]" ) ), ":", expression ;
+
+array_literal = "[", [ expression, { ",", expression } ], "]" ;
+
+array_initializer = "[", expression, ";", expression, "]" ;
+
+function_expression = [ "memo" ], "fn", [ [ identifier, "." ], identifier ], "(", [ function_parameter, { ",", function_parameter } ], ")", [ ":", type_expression ], (
+  ( { statement }, "end" )
+  | ( "->", expression )
+) ;
+
+function_parameter = [ ":" ], identifier, [ ":", type_expression ], [ "=", expression ] ;
+
+if_expression = "if", expression, "then", expression, [ "else", expression ] ;
+
+do_expression = "do", { statement }, "end" ;
+
+generator_expression = [ "memo" ], "generator", [ [ identifier, "." ], identifier ], "(", [ function_parameter, { ",", function_parameter } ], ")", [ ":", type_expression ], { statement }, "end" ;
+
+range_expression = expression, "to", expression, [ "step", expression ] ;
+
+
+
+match_expression = "match", expression, [ match_arm, { match_arm } ], "end" ;
+match_arm = match_clause, "->", expression ;
+match_clause = ( "when", match_pattern ) | "else" ;
+
+match_pattern = number_literal | string_literal | identifier
+  | match_binding
+  | match_array
+  | match_composite
+  | match_type
+  | match_range ;
+
+match_binding = "$", identifier ;
+
+match_array = "[", [ match_tuple_item, { ",", match_tuple_item } ], "]" ;
+(* TODO: flesh out *)
+match_tuple_item = match_pattern ;
+
+match_composite = "{", [ match_composite_item, { ",", match_composite_item } ], "}" ;
+match_composite_item = ( identifier | ( "[", expression, "]" ) ), ":", match_pattern ;
+
+match_type = type_expression, "(", match_binding, ")" ;
+
+match_range = match_pattern, "to", match_pattern ;
+
+
+
+macro_statement = "macro", identifier, "!", "(", [ identifier, { ",", identifier } ], ")", "->", expression ;
+
+procedural_macro_statement = "procmacro", identifier, "!", "(", [ identifier, { ",", identifier } ], ")", { statement }, "end" ;
+
+macro_invocation = identifier, "!", "(", { token_tree }, ")" ;
+
+token_tree = ( ? any token ? - ( "(" | ")" | "{" | "}" | "[", "]" ) ) | token_group ;
+
+token_group = ( "(", { token_tree }, ")" )
+  | ( "{", { token_tree }, "}" )
+  | ( "[", { token_tree }, "]" ) ;
+
+type_expression = "TODO: type_expression" ;

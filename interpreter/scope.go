@@ -12,6 +12,12 @@ const (
 	ScopeOwnerIf
 	ScopeOwnerGlobal
 	ScopeOwnerBuiltin
+	ScopeOwnerModule
+	ScopeOwnerPipeline
+	ScopeOwnerBlock
+	ScopeOwnerStruct
+	ScopeOwnerGenerator
+	ScopeOwnerImport
 )
 
 var scopeOwnerNames = [...]string{
@@ -22,25 +28,46 @@ var scopeOwnerNames = [...]string{
 	ScopeOwnerIf:        "if",
 	ScopeOwnerGlobal:    "global",
 	ScopeOwnerBuiltin:   "builtin",
+	ScopeOwnerModule:    "module",
+	ScopeOwnerPipeline:  "pipeline",
+	ScopeOwnerBlock:     "block",
+	ScopeOwnerStruct:    "struct",
+	ScopeOwnerGenerator: "generator",
+	ScopeOwnerImport:    "import",
 }
+
+// scope hierarchy:
+// builtin -> global -> module -> any other scope
 
 func (s ScopeOwner) String() string {
 	return scopeOwnerNames[s]
 }
 
-type GooseScope struct {
-	interp *interpreter
+type Scope struct {
+	module *Module
 	owner  ScopeOwner
-	parent *GooseScope
-	idents map[string]GooseValue
+	parent *Scope
+	idents map[string]*Variable
 }
 
-func NewGlobalScope(i *interpreter) *GooseScope {
-	return &GooseScope{
-		interp: i,
+type Variable struct {
+	Constant bool
+	Value    Value
+	Source   VariableSource
+}
+
+type VariableSource int
+
+const (
+	VariableSourceDecl VariableSource = iota
+	VariableSourceImport
+)
+
+func NewGlobalScope(builtins map[string]*Variable) *Scope {
+	return &Scope{
 		owner:  ScopeOwnerGlobal,
-		parent: &GooseScope{
-			interp: i,
+		idents: make(map[string]*Variable),
+		parent: &Scope{
 			owner:  ScopeOwnerBuiltin,
 			parent: nil,
 			idents: builtins,
@@ -48,44 +75,78 @@ func NewGlobalScope(i *interpreter) *GooseScope {
 	}
 }
 
-func (s *GooseScope) builtins() *GooseScope {
+func (s *Scope) Builtins() *Scope {
 	if s.owner == ScopeOwnerBuiltin {
 		return s
 	}
-	return s.parent.builtins()
+	if s.parent == nil {
+		panic("no builtin scope found")
+	}
+	return s.parent.Builtins()
 }
 
-func (s *GooseScope) global() *GooseScope {
+func (s *Scope) Global() *Scope {
 	if s.owner == ScopeOwnerGlobal {
 		return s
 	}
-	return s.parent.global()
+	if s.parent == nil {
+		panic("no global scope found")
+	}
+	return s.parent.Global()
 }
 
-func (s *GooseScope) fork(owner ScopeOwner) *GooseScope {
-	return &GooseScope{
+func (s *Scope) Owner() ScopeOwner {
+	return s.owner
+}
+
+func (s *Scope) Parent() *Scope {
+	return s.parent
+}
+
+func (s *Scope) ModuleScope() *Scope {
+	if s.owner == ScopeOwnerModule {
+		return s
+	}
+	if s.parent == nil {
+		panic("no module scope found")
+	}
+	return s.parent.ModuleScope()
+}
+
+func (s *Scope) Module() *Module {
+	if s.module != nil {
+		return s.module
+	}
+	if s.parent == nil {
+		panic("no module found")
+	}
+	return s.parent.Module()
+}
+
+func (s *Scope) Fork(owner ScopeOwner) *Scope {
+	return &Scope{
 		owner:  owner,
 		parent: s,
-		interp: s.interp,
+		idents: make(map[string]*Variable),
 	}
 }
 
-func (s *GooseScope) get(name string) *GooseValue {
+func (s *Scope) Get(name string) *Variable {
 	if v, ok := s.idents[name]; ok {
-		return &v
+		return v
 	}
 	if s.parent != nil {
-		return s.parent.get(name)
+		return s.parent.Get(name)
 	}
 	return nil
 }
 
-func (s *GooseScope) set(name string, value GooseValue) {
-	if s.idents == nil {
-		s.idents = make(map[string]GooseValue)
-	}
+func (s *Scope) GetValue(name string) Value {
+	return s.Get(name).Value
+}
 
-	if s.builtins().isDefined(name) {
+func (s *Scope) Set(name string, value *Variable) {
+	if s.Builtins().IsDefined(name) {
 		panic(fmt.Errorf("cannot redefine builtin %s", name))
 	}
 
@@ -93,45 +154,40 @@ func (s *GooseScope) set(name string, value GooseValue) {
 		if v.Constant {
 			panic(fmt.Errorf("cannot assign to constant %s", name))
 		}
-
 	}
 
 	s.idents[name] = value
 }
 
-func (s *GooseScope) update(name string, value GooseValue) {
-	if s.idents == nil {
-		s.idents = make(map[string]GooseValue)
-	}
-
+func (s *Scope) Update(name string, value Value) {
 	// try to look up the name in the current scope, if it's not there, look up in the parent scope
 
 	if v, ok := s.idents[name]; ok {
 		if v.Constant {
 			panic(fmt.Errorf("cannot assign to constant %s", name))
 		}
-		s.idents[name] = value
+		s.idents[name].Value = value
 		return
 	}
 
 	if s.parent != nil {
-		s.parent.update(name, value)
+		s.parent.Update(name, value)
 	} else {
 		panic(fmt.Errorf("%s is not defined", name))
 	}
 }
 
-func (s *GooseScope) isDefined(name string) bool {
+func (s *Scope) IsDefined(name string) bool {
 	if _, ok := s.idents[name]; ok {
 		return true
 	}
 	if s.parent != nil {
-		return s.parent.isDefined(name)
+		return s.parent.IsDefined(name)
 	}
 	return false
 }
 
-func (s *GooseScope) isDefinedInCurrentScope(name string) bool {
+func (s *Scope) IsDefinedInCurrentScope(name string) bool {
 	if _, ok := s.idents[name]; ok {
 		return true
 	}

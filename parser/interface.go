@@ -11,9 +11,10 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 
-	"github.com/wiisportsresort/goose/ast"
-	"github.com/wiisportsresort/goose/token"
+	"github.com/calico32/goose/ast"
+	"github.com/calico32/goose/token"
 )
 
 // If src != nil, readSource converts src to a []byte if possible;
@@ -61,13 +62,17 @@ func readSource(filename string, src any) ([]byte, error) {
 // errors were found, the result is a partial AST (with ast.Bad* nodes
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by source position.
-func ParseFile(fset *token.FileSet, filename string, src any, trace io.Writer) (f *ast.File, err error) {
+func ParseFile(fset *token.FileSet, absolutePath string, src any, trace io.Writer) (f *ast.File, err error) {
 	if fset == nil {
 		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
 	}
 
+	if !filepath.IsAbs(absolutePath) {
+		panic("parser.ParseFile: filename must be absolute path")
+	}
+
 	// get source
-	text, err := readSource(filename, src)
+	text, err := readSource(absolutePath, src)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +98,7 @@ func ParseFile(fset *token.FileSet, filename string, src any, trace io.Writer) (
 	}()
 
 	// parse source
-	p.init(fset, filename, text, trace)
+	p.init(fset, absolutePath, text, trace)
 	f = p.parseFile()
 
 	if len(p.errors) > 0 {

@@ -23,6 +23,8 @@ func (pos Position) String() string {
 		if pos.Column != 0 {
 			s += fmt.Sprintf(":%d", pos.Column)
 		}
+	} else {
+		s += "<none>"
 	}
 	if s == "" {
 		s = "-"

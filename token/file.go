@@ -117,7 +117,6 @@ func (f *File) LineStart(line int) Pos {
 
 // Line returns the line number for the given file position p;
 // p must be a Pos value in that file or NoPos.
-//
 func (f *File) Line(p Pos) int {
 	return f.Position(p).Line
 }
@@ -133,7 +132,6 @@ func (f *File) position(p Pos) (pos Position) {
 // If adjusted is set, the position may be adjusted by position-altering
 // //line comments; otherwise those comments are ignored.
 // p must be a Pos value in f or NoPos.
-//
 func (f *File) Position(p Pos) (pos Position) {
 	if p != NoPos {
 		if int(p) < f.base || int(p) > f.base+f.size {
@@ -147,7 +145,6 @@ func (f *File) Position(p Pos) (pos Position) {
 // unpack returns the filename and line and column number for a file offset.
 // If adjusted is set, unpack will return the filename and line information
 // possibly adjusted by //line comments; otherwise those comments are ignored.
-//
 func (f *File) unpack(offset int) (filename string, line, column int) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()

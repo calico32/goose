@@ -3,10 +3,11 @@ package goose
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
-	"github.com/wiisportsresort/goose/interpreter"
-	"github.com/wiisportsresort/goose/parser"
-	"github.com/wiisportsresort/goose/token"
+	"github.com/calico32/goose/interpreter"
+	"github.com/calico32/goose/parser"
+	"github.com/calico32/goose/token"
 )
 
 func Run(path string) (exitCode int, err error) {
@@ -18,7 +19,9 @@ func Run(path string) (exitCode int, err error) {
 	}()
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, path, nil, nil)
+
+	abspath, err := filepath.Abs(path)
+	f, err := parser.ParseFile(fset, abspath, nil, nil)
 	if err != nil {
 		return -1, err
 	}

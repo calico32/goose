@@ -1,86 +1,94 @@
 package interpreter
 
 import (
-	"fmt"
 	"strings"
+
+	"github.com/calico32/goose/ast"
+	"github.com/calico32/goose/token"
 )
 
-func toInt(value any) int {
-	switch value := value.(type) {
-	case *GooseValue:
-		return toInt(value.Value)
-	case int64:
-		return int(value)
-	case float64:
-		return int(value)
-	default:
-		panic(fmt.Errorf("unexpected type %T in toInt()", value))
-	}
-}
-
-func toInt64(value any) int64 {
-	switch value := value.(type) {
-	case *GooseValue:
-		return toInt64(value.Value)
-	case int64:
-		return int64(value)
-	case float64:
-		return int64(value)
-	default:
-		panic(fmt.Errorf("unexpected type %T in toInt64()", value))
-	}
-}
-
-func toFloat(value any) float64 {
-	switch value := value.(type) {
-	case *GooseValue:
-		return toFloat(value.Value)
-	case int64:
-		return float64(value)
-	case float64:
-		return value
-	default:
-		panic(fmt.Errorf("unexpected type %T in toInt()", value))
-	}
-}
-
-func toString(x any) string {
-	switch x := x.(type) {
-	case *GooseValue:
-		if x == nil {
-			return "<nil>"
+func toDebugString(x ast.Expr) string {
+	switch expr := x.(type) {
+	case *ast.Ident:
+		return expr.Name
+	case *ast.SelectorExpr:
+		return toDebugString(expr.X) + "." + expr.Sel.Name
+	case *ast.BracketSelectorExpr:
+		return toDebugString(expr.X) + "[" + toDebugString(expr.Sel) + "]"
+	case *ast.SliceExpr:
+		return toDebugString(expr.X) + "[" + toDebugString(expr.Low) + ":" + toDebugString(expr.High) + "]"
+	case *ast.Literal:
+		return expr.Value
+	case *ast.StringLiteral:
+		var output strings.Builder
+		output.WriteString("\"")
+		output.WriteString(expr.StringStart.Content)
+		for _, part := range expr.Parts {
+			switch part := part.(type) {
+			case *ast.StringLiteralInterpExpr:
+				output.WriteString("${")
+				output.WriteString(toDebugString(part.Expr))
+				output.WriteString("}")
+			case *ast.StringLiteralInterpIdent:
+				output.WriteString("$")
+				output.WriteString(part.Name)
+			case *ast.StringLiteralMiddle:
+				output.WriteString(part.Content)
+			}
 		}
-		return toString(x.Value)
-	case []*GooseValue:
+		output.WriteString(expr.StringEnd.Content)
+		output.WriteString("\"")
+		return output.String()
+	case *ast.ParenExpr:
+		return "(" + toDebugString(expr.X) + ")"
+	case *ast.UnaryExpr:
+		if token.IsPostfixOperator(expr.Op) {
+			return toDebugString(expr.X) + expr.Op.String()
+		} else {
+			return expr.Op.String() + toDebugString(expr.X)
+		}
+	case *ast.BinaryExpr:
+		return toDebugString(expr.X) + " " + expr.Op.String() + " " + toDebugString(expr.Y)
+	case *ast.CallExpr:
+		var output strings.Builder
+		output.WriteString(toDebugString(expr.Func))
+		output.WriteString("(")
+		for i, arg := range expr.Args {
+			if i > 0 {
+				output.WriteString(", ")
+			}
+			output.WriteString(toDebugString(arg))
+		}
+		output.WriteString(")")
+		return output.String()
+	case *ast.ArrayInitializer:
 		var output strings.Builder
 		output.WriteString("[")
-		for i, v := range x {
-			if i > 0 {
-				output.WriteString(", ")
-			}
-			output.WriteString(toString(v))
-		}
+		output.WriteString(toDebugString(expr.Value))
+		output.WriteString("; ")
+		output.WriteString(toDebugString(expr.Count))
 		output.WriteString("]")
 		return output.String()
-	case GooseFunc:
-		return fmt.Sprintf("<function %v>", x)
-	case GooseComposite:
-		var output strings.Builder
-		output.WriteString("{ ")
-		i := 0
-		for k, v := range x {
-			if i > 0 {
-				output.WriteString(", ")
-			}
-			output.WriteString(toString(k))
-			output.WriteString(": ")
-			output.WriteString(toString(v))
-			i++
-		}
-		output.WriteString(" }")
-		return output.String()
-	// case int64, float64, string, bool, nil:
-	default:
-		return fmt.Sprintf("%v", x)
 	}
+
+	return "<unknown>"
+}
+
+func toString(i *interp, scope *Scope, v Value) string {
+	prop := GetProperty(v, &String{"toString"})
+	if prop == nil {
+		return "<unknown>"
+	}
+
+	if _, ok := prop.(*Func); !ok {
+		return "<unknown>"
+	}
+
+	ret := prop.(*Func).Executor(&FuncContext{
+		interp: i,
+		Scope:  scope,
+		This:   v,
+	})
+
+	return ret.Value.(*String).Value
 }

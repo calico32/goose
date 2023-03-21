@@ -1,36 +1,27 @@
 name: Goose
 scopeName: source.goose
 patterns:
-  - include: '#comments'
-  - include: '#functions'
-  - include: '#struct-declarations'
-  - include: '#operator-overloads'
-  - include: '#generators'
-  - include: '#function-call'
-  - include: '#keywords'
-  - include: '#symbols'
-  - include: '#numbers'
-  - include: '#function-arrows'
-  - include: '#operators'
-  - include: '#language-constants'
-  - include: '#strings'
-  - include: '#struct-properties'
+  - include: '#source'
 
 repository:
   source:
     patterns:
       - include: '#comments'
       - include: '#functions'
+      - include: '#variable-declarations'
+      - include: '#macro-calls'
+      - include: '#type-declarations'
+      - include: '#macro-declarations'
       - include: '#struct-declarations'
       - include: '#operator-overloads'
       - include: '#generators'
+      - include: '#language-constants'
       - include: '#function-call'
       - include: '#keywords'
       - include: '#symbols'
       - include: '#numbers'
       - include: '#function-arrows'
       - include: '#operators'
-      - include: '#language-constants'
       - include: '#strings'
       - include: '#struct-properties'
   comments:
@@ -44,33 +35,74 @@ repository:
   keywords:
     patterns:
       - name: keyword.control.goose
-        match: \b(let|const|if|then|else|repeat|while|forever|times|for|in|break|continue|fn|end|return|memo|import|export|as|from|generator|yield|to|step|struct|init|operator|try|catch|finally|throw|symbol)\b
+        match: \b(let|const|symbol|if|then|else|repeat|while|forever|times|for|in|do|break|continue|fn|end|return|memo|import|export|as|show|generator|yield|to|step|struct|init|this|super|interface|is|operator|try|catch|finally|throw|async|await|native|assert|match|when|macro|procmacro)\b
+  variable-declarations:
+    patterns:
+      - name: meta.let.expr.goose
+        match: \b(let)\b\s+([A-Za-z$_][A-Za-z0-9$_]*)(?:\s*(:)\s*(.+?))?\b
+        captures:
+          1: { name: keyword.control.goose }
+          2: { name: variable.other.readwrite.goose }
+          3: { name: punctuation.separator.type.goose }
+          4: { patterns: [{ include: '#types' }] }
+      - name: meta.const.expr.goose
+        match: \b(const)\b\s+([A-Za-z$_][A-Za-z0-9$_]*)(?:\s*(:)\s*(.+?))?\b
+        captures:
+          1: { name: keyword.control.goose }
+          2: { name: variable.other.constant.goose }
+          3: { name: punctuation.separator.type.goose }
+          4: { patterns: [{ include: '#types' }] }
+  type-declarations:
+    patterns:
+      - name: meta.type.expr.goose
+        match: \b(type)\b\s+([A-Za-z$_][A-Za-z0-9$_]*)(?:\s*(=)\s*(.+?))?\b
+        captures:
+          1: { name: keyword.control.goose }
+          2: { name: entity.name.type.goose }
+          3: { name: keyword.operator.assignment.goose }
+          4: { patterns: [{ include: '#types' }] }
+  types:
+    patterns:
+      - name: meta.type.array.goose
+        match: (.+?)\[\]
+        captures:
+          1: { patterns: [{ include: '#types' }] }
+      - name: constant.language.primitive.goose
+        match: (bool|symbol|int|float|string|null|true|false|any)
+      - name: meta.type.generic.goose
+        begin: ([A-Za-z$_][A-Za-z0-9$_]*)\s*(\<)
+        beginCaptures:
+          1: { name: entity.name.type.goose }
+          2: { name: punctuation.definition.generic.begin.goose }
+        end: (\>)
+        endCaptures:
+          1: { name: punctuation.definition.generic.end.goose }
+        patterns:
+          - include: '#types'
+      - name: entity.name.type.goose
+        match: \b([A-Za-z$_][A-Za-z0-9$_]*)\b
+      - include: '#strings'
   struct-properties:
     patterns:
       - name: entity.name.struct_property.goose
         match: (#)\s*([A-Za-z$_][A-Za-z0-9$_]*)
         captures:
-          1:
-            name: keyword.operator.goose
+          1: { name: keyword.operator.goose }
       - name: entity.name.struct_property.goose
         begin: (#\[)
         beginCaptures:
-          1:
-            name: keyword.operator.goose
+          1: { name: keyword.operator.goose }
         end: (\])
         endCaptures:
-          1:
-            name: keyword.operator.goose
+          1: { name: keyword.operator.goose }
         patterns:
           - include: '#source'
           - begin: \[
             beginCaptures:
-              0:
-                name: meta.brace.square.goose
+              0: { name: meta.brace.square.goose }
             end: \]
             endCaptures:
-              0:
-                name: meta.brace.square.goose
+              0: { name: meta.brace.square.goose }
             patterns:
               - include: $self
           - match: '[A-Za-z$_][A-Za-z0-9$_]*'
@@ -86,60 +118,65 @@ repository:
       - name: keyword.operator.assignment.arithmetic.goose
         match: \+=|\-=|\*=|\/=|\%=|\*\*=
       - name: keyword.operator.assignment.logical.goose
-        match: \&&=|\|\|=
+        match: \&&=|\|\|=|\?\?=
       - name: keyword.operator.bitwise.assignment.goose
         match: \&=|\|=|\^=|<<=|>>=
       - name: keyword.operator.arithmetic.goose
         match: \+|\-|\*|\/|\%|\*\*
       - name: keyword.operator.logical.goose
-        match: \|\||&&|!
+        match: \|\||&&|!|\?\?
       - name: keyword.operator.comparison.goose
         match: ==|>|<|>=|<=|!=
       - name: keyword.operator.bitwise.goose
         match: \&|\||\^|~|<<|>>
+      - name: keyword.operator.spread.goose
+        match: \.\.\.
+      - name: keyword.operator.other.goose
+        match: \?|#
   struct-declarations:
-    begin: \b(struct)\s+([A-Za-z$_][A-Za-z0-9$_]*)\s*(\()
+    begin: \b(struct)\s+([A-Za-z$_][A-Za-z0-9$_]*)\s*(?:<(.*?)>)?\s*(\()
     beginCaptures:
-      1:
-        name: keyword.control.goose
-      2:
-        name: entity.name.type.struct.goose
-      3:
-        name: punctuation.definition.parameters.begin.goose
+      1: { name: keyword.control.goose }
+      2: { name: entity.name.type.struct.goose }
+      3: { patterns: [{ include: '#types' }] }
+      4: { name: punctuation.definition.parameters.begin.goose }
     end: \)
     endCaptures:
-      0:
-        name: punctuation.definition.parameters.end.goose
+      0: { name: punctuation.definition.parameters.end.goose }
     patterns:
       - include: '#function-params'
-  operator-overloads:
-    begin: \b(operator)\s+([A-Za-z$_][A-Za-z0-9$_]*)\s+([^\(]+)(\()
+  interface-declarations:
+    begin: \b(interface)\s+([A-Za-z$_][A-Za-z0-9$_]*)
     beginCaptures:
-      1:
-        name: keyword.control.goose
-      2:
-        name: entity.name.type.struct.goose
-      3:
-        name: keyword.operator.goose
-      4:
-        name: punctuation.definition.parameters.begin.goose
-    end: \)
+      1: { name: keyword.control.goose }
+      2: { name: entity.name.type.interface.goose }
+    end: end
     endCaptures:
-      0:
-        name: punctuation.definition.parameters.end.goose
+      0: { name: keyword.control.goose }
+    patterns:
+      - include: '#functions'
+  operator-overloads:
+    begin: \b(operator)\s+([A-Za-z$_][A-Za-z0-9$_]*)\s*(?:<(.*?)>)?\s+([^\(]+)(\()
+    beginCaptures:
+      1: { name: keyword.control.goose }
+      2: { name: entity.name.type.struct.goose }
+      3: { patterns: [{ include: '#types' }] }
+      4: { name: keyword.operator.goose }
+      5: { name: punctuation.definition.parameters.begin.goose }
+    end: (\))\s*(?:(:)(.+))?
+    endCaptures:
+      1: { name: punctuation.definition.parameters.end.goose }
+      2: { name: punctuation.separator.type.goose }
+      3: { patterns: [{ include: '#types' }] }
     patterns:
       - include: '#function-params'
   generators:
     begin: \b(generator)\s*(?:\s+(?:([A-Za-z$_][A-Za-z0-9$_]*)\.)?([A-Za-z$_][A-Za-z0-9$_]*))?\s*(\()
     beginCaptures:
-      1:
-        name: keyword.control.goose
-      2:
-        name: entity.name.type.struct.goose
-      3:
-        name: entity.name.function.goose
-      4:
-        name: punctuation.definition.parameters.goose
+      1: { name: keyword.control.goose }
+      2: { name: entity.name.type.struct.goose }
+      3: { name: entity.name.function.goose }
+      4: { name: punctuation.definition.parameters.goose }
     end: (\))
     endCaptures:
       '1':
@@ -147,20 +184,33 @@ repository:
     patterns:
       - include: '#function-params'
   functions:
-    begin: \b(fn)\s*(?:\s+(?:([A-Za-z$_][A-Za-z0-9$_]*)\.)?([A-Za-z$_][A-Za-z0-9$_]*))?\s*(\()
+    begin: \b(fn)\s*(?:\s+(?:([A-Za-z$_][A-Za-z0-9$_]*)(?:<(.*?)>)?\.)?([A-Za-z$_][A-Za-z0-9$_]*))?\s*(?:<(.*?)>)?\s*(\()
     beginCaptures:
-      1:
-        name: keyword.control.goose
-      2:
-        name: entity.name.type.struct.goose
-      3:
-        name: entity.name.function.goose
-      4:
-        name: punctuation.definition.parameters.goose
-    end: (\))
+      1: { name: keyword.control.goose }
+      2: { name: entity.name.type.struct.goose }
+      3: { patterns: [{ include: '#types' }] }
+      4: { name: entity.name.function.goose }
+      5: { patterns: [{ include: '#types' }] }
+      6: { name: punctuation.definition.parameters.goose }
+    end: (\))(?:(:)(.+))?
     endCaptures:
-      '1':
-        name: punctuation.definition.parameters.goose
+      1: { name: punctuation.definition.parameters.goose }
+      2: { name: punctuation.separator.type.goose }
+      3: { patterns: [{ include: '#types' }] }
+    patterns:
+      - include: '#function-params'
+  macro-declarations:
+    begin: \b(procmacro|macro)\s+([A-Za-z$_][A-Za-z0-9$_]*)(!)(\()
+    beginCaptures:
+      1: { name: keyword.control.goose }
+      2: { name: entity.name.function.goose }
+      3: { name: keyword.operator.goose }
+      4: { name: punctuation.definition.parameters.goose }
+    end: (\))(?:(:)(.+))?
+    endCaptures:
+      1: { name: punctuation.definition.parameters.goose }
+      2: { name: punctuation.separator.type.goose }
+      3: { patterns: [{ include: '#types' }] }
     patterns:
       - include: '#function-params'
   function-params:
@@ -171,28 +221,60 @@ repository:
             name: keyword.operator.rest-parameters.goose
         end: (?=[,)/])
         patterns:
-          - name: variable.parameter.function.goose
-            match: \G:?[A-Za-z$_][A-Za-z0-9$_]*
-          - include: '#function-call'
-          - include: '#comments'
-          - include: '#operators'
-          - include: '#numbers'
-          - include: '#comments'
+          - name: meta.parameter.function.goose
+            match: \G(:?[A-Za-z$_][A-Za-z0-9$_]*)(?:\s*(:)\s*(.+?))?(?:\s*(=)\s*(.+))?(?=[,)/])
+            captures:
+              1: { name: variable.parameter.function.goose }
+              2: { name: punctuation.separator.type.goose }
+              3: { patterns: [{ include: '#types' }] }
+              4: { name: keyword.operator.assignment.goose }
+              5: { patterns: [{ include: '#source' }] }
   function-call:
-    begin: (?<!\w)(?:([a-z$_][A-Za-z0-9$_]*)|([A-Z][A-Za-z0-9$_]*))(\()
+    begin: (?<!\w)(?:([a-z$_][A-Za-z0-9$_]*)|([A-Z][A-Za-z0-9$_]*))(?:<(.*?)>)?(\()
     beginCaptures:
-      1:
-        name: entity.name.function.goose
-      2:
-        name: entity.name.type.struct.goose
-      3:
-        name: meta.brace.round.goose
-    end: \)
+      1: { name: entity.name.function.goose }
+      2: { name: entity.name.type.struct.goose }
+      3: { patterns: [{ include: '#types' }] }
+      4: { name: meta.brace.round.goose }
+    end: (\))
     endCaptures:
-      0:
-        name: meta.brace.round.goose
+      1: { name: meta.brace.round.goose }
     patterns:
-      - include: $self
+      - include: '#source'
+  macro-calls:
+    patterns:
+      - begin: (?<!\w)(html)(!)(\()
+        beginCaptures:
+          1: { name: entity.name.function.goose }
+          2: { name: keyword.operator.goose }
+          3: { name: meta.brace.round.goose }
+        end: \)
+        endCaptures:
+          0: { name: meta.brace.round.goose }
+        contentName: meta.embedded.html.goose
+        patterns:
+          - include: source.js.jsx
+      - begin: (?<!\w)(sql)(!)(\()
+        beginCaptures:
+          1: { name: entity.name.function.goose }
+          2: { name: keyword.operator.goose }
+          3: { name: meta.brace.round.goose }
+        end: \)
+        endCaptures:
+          0: { name: meta.brace.round.goose }
+        contentName: meta.embedded.sql.goose
+        patterns:
+          - include: source.sql
+      - begin: (?<!\w)([A-Za-z$_][A-Za-z0-9$_]*)(!)(\()
+        beginCaptures:
+          1: { name: entity.name.function.goose }
+          2: { name: keyword.operator.goose }
+          3: { name: meta.brace.round.goose }
+        end: \)
+        endCaptures:
+          0: { name: meta.brace.round.goose }
+        patterns:
+          - include: $self
   symbols:
     patterns:
       - name: constant.language.goose
@@ -211,47 +293,40 @@ repository:
     patterns:
       - name: constant.language.goose
         match: \b(true|false|null|_)\b
+      - name: constant.language.primitive.goose
+        match: \b(string|int|float|bool)\b
   string-interpolations:
     patterns:
       - name: string.interpolated.goose
         match: (\$)(#?)([A-Za-z$_][A-Za-z0-9$_]*)
         captures:
-          0:
-            name: variable.parameter.goose
-          1:
-            name: punctuation.definition.template-expression
-          2:
-            name: keyword.operator.goose
+          0: { name: variable.parameter.goose }
+          1: { name: punctuation.definition.template-expression }
+          2: { name: keyword.operator.goose }
       - name: source.goose
         contentName: variable.other.goose
         begin: \$\{
         beginCaptures:
-          0:
-            name: punctuation.definition.template-expression
+          0: { name: punctuation.definition.template-expression.goose }
         end: \}
         endCaptures:
-          0:
-            name: punctuation.definition.template-expression
+          0: { name: punctuation.definition.template-expression }
         patterns:
           - include: '#source'
           - begin: \(
             beginCaptures:
-              0:
-                name: meta.brace.round.goose
+              0: { name: meta.brace.round.goose }
             end: \)
             endCaptures:
-              0:
-                name: meta.brace.round.goose
+              0: { name: meta.brace.round.goose }
             patterns:
               - include: '#source'
           - begin: \{
             beginCaptures:
-              0:
-                name: meta.brace.curly.goose
+              0: { name: meta.brace.curly.goose }
             end: \}
             endCaptures:
-              0:
-                name: meta.brace.curly.goose
+              0: { name: meta.brace.curly.goose }
             patterns:
               - include: $self
           - match: '[A-Za-z$_][A-Za-z0-9$_]*'
@@ -273,12 +348,10 @@ repository:
     name: string.quoted.double.goose
     begin: '"'
     beginCaptures:
-      0:
-        name: punctuation.definition.string.begin.goose
+      0: { name: punctuation.definition.string.begin.goose }
     end: '"'
     endCaptures:
-      0:
-        name: punctuation.definition.string.end.goose
+      0: { name: punctuation.definition.string.end.goose }
     patterns:
       - include: '#string-interpolations'
       - include: '#string-escapes'

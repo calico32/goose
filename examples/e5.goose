@@ -1,5 +1,3 @@
-// more array initializers
-
 const fruits = [
   "apple",
   "banana",
@@ -12,6 +10,6 @@ const fruits = [
 ]
 
 // ["1. apple", "2. banana", ..., "8. strawberry"]
-let strings = ["${_ + 1}. ${fruits[_]}"; len(fruits)]
+let strings = fruits.map(fn(fruit, i) -> "${i + 1}. $fruit")
 
-print(join(strings, "\n"))
+print(strings.join("\n"))

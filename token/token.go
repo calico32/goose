@@ -12,7 +12,7 @@ const (
 	EOF
 	Comment
 
-	literal_start
+	LiteralStart
 	Ident
 	Int   // int64
 	Float // float64
@@ -22,36 +22,52 @@ const (
 	StringInterpExprStart
 	StringInterpExprEnd
 	StringEnd
-	literal_end
+	LiteralEnd
 
-	operator_start
+	OperatorStart
+	Assign
+	OverloadAllowedStart
 	Add
 	Sub
 	Mul
 	Quo
 	Rem
 	Pow
-
-	Assign
+	Gt
+	Lt
+	Lte
+	Gte
+	Inc
+	Dec
+	Question
+	BitShl
+	BitShr
+	BitNot
+	BitAnd
+	BitOr
+	BitXor
+	Eq
+	Neq
+	Spaceship
+	OverloadAllowedEnd
 	AddAssign
 	SubAssign
 	MulAssign
 	QuoAssign
 	RemAssign
 	PowAssign
-	Inc
-	Dec
-
 	LogAnd
 	LogOr
 	LogNot
-
-	Eq
-	Neq
-	Lt
-	Gt
-	Lte
-	Gte
+	LogNull
+	LogAndAssign
+	LogOrAssign
+	LogNullAssign
+	BitAndAssign
+	BitOrAssign
+	BitXorAssign
+	BitShlAssign
+	BitShrAssign
 	LParen
 	RParen
 	LBracket
@@ -62,29 +78,56 @@ const (
 	Semi
 	Comma
 	Period
+	Arrow
+	Ellipsis
+	HashLBracket
+	Bind
 	EOL
-	operator_end
+	OperatorEnd
 
-	keyword_start
+	KeywordStart
+	Null
+	True
+	False
+	Let
+	Const
+	Symbol
 	If
+	Then
 	Else
 	Repeat
+	While
 	Forever
 	Times
-	While
 	For
 	In
 	Break
 	Continue
-	Null
-	End
 	Func
-	Memo
-	Const
-	Let
+	End
 	Return
-	Include
-	keyword_end
+	Memo
+	Import
+	Export
+	As
+	Show
+	Use
+	Generator
+	Yield
+	To
+	Step
+	Struct
+	Init
+	Operator
+	Try
+	Catch
+	Finally
+	Throw
+	Do
+	Async
+	Await
+	Native
+	KeywordEnd
 
 	None
 )
@@ -104,64 +147,104 @@ var tokens = [...]string{
 	StringInterpExprEnd:   "<S_EXPRE>",
 	StringEnd:             "<S_END>",
 
-	Add: "+",
-	Sub: "-",
-	Mul: "*",
-	Quo: "/",
-	Rem: "%",
-	Pow: "**",
+	Assign:        "=",
+	Add:           "+",
+	Sub:           "-",
+	Mul:           "*",
+	Quo:           "/",
+	Rem:           "%",
+	Pow:           "**",
+	AddAssign:     "+=",
+	SubAssign:     "-=",
+	MulAssign:     "*=",
+	QuoAssign:     "/=",
+	RemAssign:     "%=",
+	PowAssign:     "**=",
+	Inc:           "++",
+	Dec:           "--",
+	LogAnd:        "&&",
+	LogOr:         "||",
+	LogNot:        "!",
+	LogNull:       "??",
+	LogAndAssign:  "&&=",
+	LogOrAssign:   "||=",
+	LogNullAssign: "??=",
+	Question:      "?",
+	Eq:            "==",
+	Neq:           "!=",
+	Lt:            "<",
+	Gt:            ">",
+	Lte:           "<=",
+	Gte:           ">=",
+	BitNot:        "~",
+	BitAnd:        "&",
+	BitOr:         "|",
+	BitXor:        "^",
+	BitShl:        "<<",
+	BitShr:        ">>",
+	BitAndAssign:  "&=",
+	BitOrAssign:   "|=",
+	BitXorAssign:  "^=",
+	BitShlAssign:  "<<=",
+	BitShrAssign:  ">>=",
 
-	Assign:    "=",
-	AddAssign: "+=",
-	SubAssign: "-=",
-	MulAssign: "*=",
-	QuoAssign: "/=",
-	RemAssign: "%=",
-	PowAssign: "**=",
-	Inc:       "++",
-	Dec:       "--",
+	LParen:       "(",
+	RParen:       ")",
+	LBracket:     "[",
+	RBracket:     "]",
+	LBrace:       "{",
+	RBrace:       "}",
+	Colon:        ":",
+	Semi:         ";",
+	Comma:        ",",
+	Period:       ".",
+	Arrow:        "->",
+	Ellipsis:     "...",
+	HashLBracket: "#[",
+	Bind:         "::",
+	EOL:          "<EOL>",
 
-	LogAnd: "&&",
-	LogOr:  "||",
-	LogNot: "!",
-
-	Eq:  "==",
-	Neq: "!=",
-	Lt:  "<",
-	Gt:  ">",
-	Lte: "<=",
-	Gte: ">=",
-
-	LParen:   "(",
-	RParen:   ")",
-	LBracket: "[",
-	RBracket: "]",
-	LBrace:   "{",
-	RBrace:   "}",
-	Colon:    ":",
-	Semi:     ";",
-	Comma:    ",",
-	Period:   ".",
-	EOL:      "\n",
-
-	If:       "if",
-	Else:     "else",
-	Repeat:   "repeat",
-	Forever:  "forever",
-	Times:    "times",
-	While:    "while",
-	For:      "for",
-	In:       "in",
-	Break:    "break",
-	Continue: "continue",
-	Null:     "null",
-	End:      "end",
-	Func:     "fn",
-	Memo:     "memo",
-	Const:    "const",
-	Let:      "let",
-	Return:   "return",
-	Include:  "include",
+	Null:      "null",
+	True:      "true",
+	False:     "false",
+	Let:       "let",
+	Const:     "const",
+	Symbol:    "symbol",
+	If:        "if",
+	Then:      "then",
+	Else:      "else",
+	Repeat:    "repeat",
+	While:     "while",
+	Forever:   "forever",
+	Times:     "times",
+	For:       "for",
+	In:        "in",
+	Break:     "break",
+	Continue:  "continue",
+	Func:      "fn",
+	End:       "end",
+	Return:    "return",
+	Memo:      "memo",
+	Import:    "import",
+	Export:    "export",
+	As:        "as",
+	Show:      "show",
+	Use:       "use",
+	Generator: "generator",
+	Yield:     "yield",
+	To:        "to",
+	Step:      "step",
+	Struct:    "struct",
+	Init:      "init",
+	Operator:  "operator",
+	Try:       "try",
+	Catch:     "catch",
+	Finally:   "finally",
+	Throw:     "throw",
+	Do:        "do",
+	Async:     "async",
+	Await:     "await",
+	Native:    "native",
 }
 
 func (tok Token) String() string {
@@ -177,22 +260,28 @@ func (tok Token) String() string {
 
 const (
 	PrecedenceLowest  = 0
-	PrecedenceUnary   = 6
-	PrecedenceHighest = 7
+	PrecedenceUnary   = 9
+	PrecedenceHighest = 10
 )
 
 func (tok Token) Precedence() int {
 	switch tok {
-	case LogOr:
+	case Arrow:
 		return 1
-	case LogAnd:
+	case LogNull:
 		return 2
-	case Eq, Neq, Lt, Gt, Lte, Gte:
+	case LogOr:
 		return 3
-	case Add, Sub:
+	case LogAnd:
 		return 4
-	case Mul, Quo, Rem, Pow:
+	case Eq, Neq, Lt, Gt, Lte, Gte:
 		return 5
+	case Add, Sub:
+		return 6
+	case Mul, Quo, Rem:
+		return 7
+	case Pow:
+		return 8
 	}
 	return PrecedenceLowest
 }
@@ -200,8 +289,8 @@ func (tok Token) Precedence() int {
 var keywords map[string]Token
 
 func init() {
-	keywords = make(map[string]Token, keyword_end-(keyword_start+1))
-	for i := keyword_start + 1; i < keyword_end; i++ {
+	keywords = make(map[string]Token, KeywordEnd-(KeywordStart+1))
+	for i := KeywordStart + 1; i < KeywordEnd; i++ {
 		keywords[tokens[i]] = i
 	}
 }
@@ -214,15 +303,15 @@ func Lookup(ident string) Token {
 }
 
 func (tok Token) IsLiteral() bool {
-	return literal_start < tok && tok < literal_end
+	return LiteralStart < tok && tok < LiteralEnd
 }
 
 func (tok Token) IsOperator() bool {
-	return operator_start < tok && tok < operator_end
+	return OperatorStart < tok && tok < OperatorEnd
 }
 
 func (tok Token) IsKeyword() bool {
-	return keyword_start < tok && tok < keyword_end
+	return KeywordStart < tok && tok < KeywordEnd
 }
 
 func IsKeyword(tok string) bool {
@@ -242,4 +331,10 @@ func IsIdentifier(name string) bool {
 	}
 
 	return true
+}
+
+func IsPostfixOperator(tok Token) bool {
+	return tok == Inc ||
+		tok == Dec ||
+		tok == Question
 }

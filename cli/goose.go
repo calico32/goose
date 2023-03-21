@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"github.com/wiisportsresort/goose/interpreter"
-	"github.com/wiisportsresort/goose/parser"
-	"github.com/wiisportsresort/goose/scanner"
-	"github.com/wiisportsresort/goose/token"
+	"github.com/calico32/goose/interpreter"
+	"github.com/calico32/goose/parser"
+	"github.com/calico32/goose/scanner"
+	"github.com/calico32/goose/token"
 )
 
 type Token struct {
@@ -135,7 +136,11 @@ func main() {
 		}
 
 		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, args[0], nil, nil)
+		absPath, err := filepath.Abs(args[0])
+		if err != nil {
+			panic(err)
+		}
+		f, err := parser.ParseFile(fset, absPath, nil, nil)
 		if err != nil {
 			panic(err)
 		}

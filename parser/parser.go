@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/wiisportsresort/goose/ast"
-	"github.com/wiisportsresort/goose/scanner"
-	"github.com/wiisportsresort/goose/token"
+	"github.com/calico32/goose/ast"
+	"github.com/calico32/goose/scanner"
+	"github.com/calico32/goose/token"
 )
 
 type Parser struct {
@@ -21,6 +21,10 @@ type Parser struct {
 	pos token.Pos
 	tok token.Token
 	lit string
+
+	nextPos token.Pos
+	nextTok token.Token
+	nextLit string
 
 	// syncPos   token.Pos
 	// syncCount int
@@ -39,6 +43,7 @@ func (p *Parser) init(fset *token.FileSet, filename string, src []byte, trace io
 	errorHandler := func(pos token.Position, msg string) { p.errors.Add(pos, msg) }
 	p.scanner.Init(p.file, src, errorHandler)
 
+	p.next()
 	p.next()
 }
 
@@ -87,7 +92,8 @@ func (p *Parser) _next() {
 		}
 	}
 
-	p.pos, p.tok, p.lit = p.scanner.Scan()
+	p.pos, p.tok, p.lit = p.nextPos, p.nextTok, p.nextLit
+	p.nextPos, p.nextTok, p.nextLit = p.scanner.Scan()
 }
 
 func (p *Parser) next() {
@@ -96,129 +102,6 @@ func (p *Parser) next() {
 	// skip comments
 	for p.tok == token.Comment {
 		p._next()
-	}
-}
-
-func (p *Parser) error(pos token.Pos, msg string) {
-	if p.trace {
-		defer un(trace(p, "error: "+msg))
-	}
-
-	epos := p.file.Position(pos)
-
-	// If AllErrors is not set, discard errors reported on the same line
-	// as the last recorded error and stop parsing if there are more than
-	// 10 errors.
-	// if p.mode&AllErrors == 0 {
-	// 	n := len(p.errors)
-	// 	if n > 0 && p.errors[n-1].Pos.Line == epos.Line {
-	// 		return // discard - likely a spurious error
-	// 	}
-	// 	if n > 10 {
-	// 		panic(bailout{})
-	// 	}
-	// }
-
-	p.errors.Add(epos, msg)
-}
-
-func (p *Parser) errorExpected(pos token.Pos, msg string) {
-	msg = "expected " + msg
-	if pos == p.pos {
-		// the error happened at the current position;
-		// make the error message more specific
-		switch {
-		// case p.tok == token.SEMICOLON && p.lit == "\n":
-		// 	msg += ", found newline"
-		case p.tok.IsLiteral():
-			// print 123 rather than 'INT', etc.
-			msg += ", found " + p.lit
-		default:
-			msg += ", found '" + p.tok.String() + "'"
-		}
-	}
-	p.error(pos, msg)
-}
-
-func (p *Parser) expect(tok token.Token) token.Pos {
-	pos := p.pos
-	if p.tok != tok {
-		p.errorExpected(pos, "'"+tok.String()+"'")
-	}
-	p.next() // make progress
-	return pos
-}
-
-func (p *Parser) parseIdent() *ast.Ident {
-	pos := p.pos
-	name := "_"
-	if p.tok == token.Ident {
-		name = p.lit
-		p.next()
-	} else {
-		p.expect(token.Ident)
-	}
-	return &ast.Ident{NamePos: pos, Name: name}
-}
-
-func (p *Parser) parseParameters() (params *ast.FuncParamList) {
-	if p.trace {
-		defer un(trace(p, "Parameters"))
-	}
-
-	opening := p.expect(token.LParen)
-	var fields []*ast.FuncParam
-	for p.tok != token.RParen {
-		ident := p.parseIdent()
-		f := &ast.FuncParam{Ident: ident}
-		if p.tok == token.Assign {
-			p.next()
-			f.Value = p.parseExpr()
-		}
-
-		fields = append(fields, f)
-		if p.tok != token.RParen {
-			p.expect(token.Comma)
-		}
-	}
-
-	rparen := p.expect(token.RParen)
-	params = &ast.FuncParamList{Opening: opening, List: fields, Closing: rparen}
-
-	return
-}
-
-func (p *Parser) parseFuncStmt() *ast.FuncStmt {
-	if p.trace {
-		defer un(trace(p, "FuncStmt"))
-	}
-
-	var memoPos token.Pos
-	if p.tok == token.Memo {
-		memoPos = p.pos
-		p.next()
-	}
-
-	pos := p.expect(token.Func)
-
-	ident := p.parseIdent()
-	params := p.parseParameters()
-
-	var body []ast.Stmt
-
-	for p.tok != token.EOF && p.tok != token.End {
-		body = append(body, p.parseStmt())
-	}
-
-	end := p.expect(token.End)
-
-	return &ast.FuncStmt{
-		Memo:     memoPos,
-		Func:     pos,
-		Name:     ident,
-		Params:   params,
-		Body:     body,
-		BlockEnd: end,
 	}
 }
 
@@ -240,410 +123,60 @@ func (p *Parser) safePos(pos token.Pos) (res token.Pos) {
 	return pos
 }
 
-func (p *Parser) parseCall(fun ast.Expr) *ast.CallExpr {
-	if p.trace {
-		defer un(trace(p, "CallExpr"))
-	}
-
-	lparen := p.expect(token.LParen)
-	var list []ast.Expr
-	for p.tok != token.RParen && p.tok != token.EOF {
-		list = append(list, p.parseExpr())
-		if p.tok != token.RParen {
-			p.expect(token.Comma)
-		}
-	}
-	rparen := p.expect(token.RParen)
-
-	return &ast.CallExpr{Fun: fun, LParen: lparen, Args: list, RParen: rparen}
-}
-
-func (p *Parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
-	if p.trace {
-		defer un(trace(p, "IndexOrSlice"))
-	}
-
-	lbrack := p.expect(token.LBracket)
-	if p.tok == token.RBracket {
-		// empty index
-		p.errorExpected(p.pos, "expression")
-		rbrack := p.pos
-		p.next()
-		return &ast.BracketSelectorExpr{
-			X:      x,
-			LBrack: lbrack,
-			Sel:    &ast.BadExpr{From: lbrack, To: rbrack},
-			RBrack: rbrack,
-		}
-	}
-
-	var left ast.Expr
-	var right ast.Expr
-	isSlicing := false
-
-	if p.tok != token.Colon {
-		left = p.parseExpr()
-		if p.tok == token.Colon {
-			isSlicing = true
-			p.next()
-		}
-	} else {
-		isSlicing = true
-	}
-
-	if p.tok != token.RBracket {
-		right = p.parseExpr()
-	}
-
-	if left == nil && right == nil {
-		p.errorExpected(p.pos, "slice expression")
-		return &ast.SliceExpr{
-			X:      x,
-			LBrack: lbrack,
-			Low:    &ast.BadExpr{From: lbrack, To: p.pos},
-			High:   &ast.BadExpr{From: p.pos, To: p.pos},
-			RBrack: p.safePos(p.pos),
-		}
-	}
-
-	rbrack := p.expect(token.RBracket)
-
-	if isSlicing {
-		return &ast.SliceExpr{
-			X:      x,
-			LBrack: lbrack,
-			Low:    left,
-			High:   right,
-			RBrack: rbrack,
-		}
-	}
-
-	return &ast.BracketSelectorExpr{
-		X:      x,
-		LBrack: lbrack,
-		Sel:    left,
-		RBrack: rbrack,
-	}
-}
-
-func (p *Parser) parseExpr() ast.Expr {
-	if p.trace {
-		defer un(trace(p, "Expression"))
-	}
-
-	return p.parseBinaryExpr(nil, token.PrecedenceLowest+1)
-}
-
-func (p *Parser) parseBinaryExpr(x ast.Expr, precedence int) ast.Expr {
-	if p.trace {
-		defer un(trace(p, "BinaryExpr"))
-	}
-
-	if x == nil {
-		x = p.parseUnaryExpr()
-	}
-
-	for {
-		operator := p.tok
-		operatorPrec := p.tok.Precedence()
-		if operatorPrec < precedence {
-			return x
-		}
-		pos := p.expect(operator)
-		y := p.parseBinaryExpr(nil, operatorPrec+1)
-
-		x = &ast.BinaryExpr{X: x, OpPos: pos, Op: operator, Y: y}
-	}
-
-}
-
-func (p *Parser) parseUnaryExpr() ast.Expr {
-	switch p.tok {
-	case token.Add, token.Sub, token.LogNot:
-		pos := p.pos
-		op := p.tok
-		p.next()
-		x := p.parseUnaryExpr()
-		return &ast.UnaryExpr{OpPos: pos, Op: op, X: x}
-	}
-
-	return p.parsePrimaryExpr(nil)
-}
-
-func (p *Parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
-	if p.trace {
-		defer un(trace(p, "PrimaryExpr"))
-	}
-
-	if x == nil {
-		x = p.parseOperand()
-	}
-
-	for {
-		switch p.tok {
-		case token.LParen:
-			x = p.parseCall(x)
-		case token.LBracket:
-			x = p.parseIndexOrSlice(x)
-		case token.Period:
-			x = p.parseSelectorExpr(x)
-		default:
-			return x
-		}
-	}
-}
-
-func (p *Parser) parseOperand() ast.Expr {
-	if p.trace {
-		defer un(trace(p, "Operand"))
-	}
-
-	switch p.tok {
-	case token.Ident:
-		x := p.parseIdent()
-		return x
-	case token.Int, token.Float, token.Null:
-		x := &ast.Literal{Value: p.lit, ValuePos: p.pos, Kind: p.tok}
-		p.next()
-		return x
-	case token.StringStart:
-		x := p.parseString()
-		return x
-	case token.LBracket:
-		x := p.parseArrayLitOrInitializer()
-		return x
-	case token.LParen:
-		lparen := p.pos
-		p.next()
-		x := p.parseExpr()
-		rparen := p.expect(token.RParen)
-		return &ast.ParenExpr{Lparen: lparen, X: x, Rparen: rparen}
-	case token.LBrace:
-		x := p.parseComposite()
-		return x
-	}
-
-	pos := p.pos
-	p.errorExpected(pos, "operand")
-	p.next() // make progress
-	return &ast.BadExpr{From: pos, To: p.safePos(p.pos)}
-}
-
-func (p *Parser) parseString() (s *ast.StringLiteral) {
-	if p.trace {
-		defer un(trace(p, "String"))
-	}
-
-	start := p.lit
-	quote := p.expect(token.StringStart)
-	var parts []ast.StringLiteralPart
-
-	str := &ast.StringLiteral{
-		StringStart: &ast.StringLiteralStart{
-			Quote:   quote,
-			Content: start[1:],
-		},
-	}
-
-loop:
-	for {
-		switch p.tok {
-		case token.StringMid:
-			parts = append(parts, &ast.StringLiteralMiddle{
-				StartPos: p.pos,
-				Content:  p.lit,
-			})
-			p.next()
-		case token.StringInterpIdent:
-			parts = append(parts, &ast.StringLiteralInterpIdent{
-				InterpPos: p.pos,
-				Name:      p.lit[1:],
-			})
-			p.next()
-		case token.StringInterpExprStart:
-			pos := p.pos
-			p.next()
-			interpExpr := &ast.StringLiteralInterpExpr{
-				InterpPos: pos,
-				Expr:      p.parseExpr(),
-			}
-			p.expect(token.StringInterpExprEnd)
-			parts = append(parts, interpExpr)
-		case token.StringEnd:
-			str.StringEnd = &ast.StringLiteralEnd{
-				StartPos: p.pos,
-				Content:  p.lit[:len(p.lit)-1],
-				Quote:    token.Pos(int(p.pos) + len(p.lit)),
-			}
-			p.next()
-			break loop
-		default:
-			p.errorExpected(p.pos, "string part")
-			p.next()
-			break loop
-		}
-	}
-
-	str.Parts = parts
-	return str
-}
-
-func (p *Parser) parseArrayLitOrInitializer() (s ast.Expr) {
-	if p.trace {
-		defer un(trace(p, "ArrayLiteralOrInitializer"))
-	}
-
-	isInitializer := false
-	var initializer ast.ArrayInitializer
-
-	lbracket := p.expect(token.LBracket)
-	var list []ast.Expr
-	for p.tok != token.RBracket && p.tok != token.EOF {
-		if isInitializer {
-			// already read [value;
-			// read count (bracket coming next)
-			initializer.Count = p.parseExpr()
-			break
-		} else {
-			list = append(list, p.parseExpr())
-		}
-
-		if p.tok != token.RBracket {
-			if p.tok == token.Semi {
-				if len(list) != 1 {
-					// initializer semicolon too late (mixed comma and semicolon)
-					p.error(p.pos, "expected ']' or ','")
-					p.next()
-				} else {
-					isInitializer = true
-					initializer.Value = list[0]
-					initializer.Semi = p.pos
-					p.next()
-				}
-				continue
-			}
-
-			p.expect(token.Comma)
-		}
-	}
-	rbracket := p.expect(token.RBracket)
-
-	if isInitializer {
-		return &initializer
-	}
-
-	return &ast.ArrayLiteral{
-		Opening: lbracket,
-		List:    list,
-		Closing: rbracket,
-	}
-}
-
-func (p *Parser) parseComposite() (s *ast.CompositeLiteral) {
-	if p.trace {
-		defer un(trace(p, "CompositeLiteral"))
-	}
-
-	lbrace := p.expect(token.LBrace)
-
-	var list []*ast.CompositeField
-
-	for p.tok != token.RBrace && p.tok != token.EOF {
-		list = append(list, p.parseCompositeField())
-		if p.tok != token.RBrace {
-			p.expect(token.Comma)
-		}
-	}
-
-	rbrace := p.expect(token.RBrace)
-
-	return &ast.CompositeLiteral{
-		Lbrace: lbrace,
-		Fields: list,
-		Rbrace: rbrace,
-	}
-}
-
-func (p *Parser) parseCompositeField() (s *ast.CompositeField) {
-	if p.trace {
-		defer un(trace(p, "CompositeField"))
-	}
-
-	var key ast.Expr
-	var value ast.Expr
-
-	if p.tok == token.LBracket {
-		p.next()
-		key = p.parseExpr()
-		p.expect(token.RBracket)
-	} else if p.tok == token.StringStart {
-		key = p.parseString()
-	} else if p.tok == token.Int || p.tok == token.Float {
-		key = &ast.Literal{Value: p.lit, ValuePos: p.pos, Kind: p.tok}
-		p.next()
-	} else {
-		ident := p.parseIdent()
-		key = &ast.StringLiteral{
-			StringStart: &ast.StringLiteralStart{
-				Quote:   token.Pos(int(ident.Pos()) - 1),
-				Content: ident.Name,
-			},
-			StringEnd: &ast.StringLiteralEnd{
-				StartPos: token.Pos(int(ident.End()) - 1),
-				Quote:    token.Pos(int(ident.End()) + 1),
-			},
-		}
-	}
-
-	p.expect(token.Colon)
-	value = p.parseExpr()
-
-	return &ast.CompositeField{
-		Key:   key,
-		Value: value,
-	}
-}
-
-func (p *Parser) parseSelectorExpr(c ast.Expr) ast.Expr {
-	if p.trace {
-		defer un(trace(p, "SelectorExpr"))
-	}
-
-	p.expect(token.Period)
-
-	return &ast.SelectorExpr{
-		X:   c,
-		Sel: p.parseIdent(),
-	}
-}
-
 func (p *Parser) parseStmt() (s ast.Stmt) {
 	if p.trace {
 		defer un(trace(p, "Statement"))
 	}
 
 	switch p.tok {
-	case token.Func, token.Memo:
-		s = p.parseFuncStmt()
 	case
 		// tokens that may start an expression
-		token.Ident, token.Int, token.Float, token.LParen, token.LBracket, token.LBrace, // operands
-		token.Add, token.Sub, token.Mul, token.LogNot: // unary operators
+		token.Ident, token.Int, token.Float, token.LParen, token.LBracket, token.LBrace, token.StringStart, token.Null, // operands
+		token.Add, token.Sub, token.Mul, token.LogNot, // unary operators
+		token.Memo, token.Func, token.Generator, // function-like
+		token.Await, token.Throw, token.Do: // other
 		s = p.parseSimpleStmt()
 	case token.Const:
 		s = p.parseConstStmt()
 	case token.Let:
 		s = p.parseLetStmt()
+	case token.Symbol:
+		s = p.parseSymbolStmt()
 	case token.Return:
 		s = p.parseReturnStmt()
+	case token.Yield:
+		s = p.parseYieldStmt()
 	case token.Break, token.Continue:
 		s = p.parseBranchStmt(p.tok)
 	case token.If:
-		s = p.parseIfStmt()
+		n := p.parseIfExprStmt(true)
+		if expr, isExpr := n.(*ast.IfExpr); isExpr {
+			s = &ast.ExprStmt{X: expr}
+		} else {
+			s = n.(*ast.IfStmt)
+		}
 	case token.For:
 		s = p.parseForStmt()
 	case token.Repeat:
 		s = p.parseRepeatStmt()
+	case token.Try:
+		s = p.parseTryStmt()
+	case token.Import:
+		s = p.parseImportStmt()
+	case token.Export:
+		s = p.parseExportStmt()
+	case token.Struct:
+		s = p.parseStructStmt()
+	case token.Operator:
+		s = p.parseOperatorStmt()
+	case token.Async:
+		if p.nextTok == token.Operator {
+			s = p.parseOperatorStmt()
+		} else {
+			s = p.parseSimpleStmt()
+		}
+	case token.Native:
+		s = p.parseNativeStmt()
 	default:
 		// no statement found
 		pos := p.pos
@@ -683,178 +216,6 @@ func (p *Parser) parseSimpleStmt() ast.Stmt {
 	return &ast.ExprStmt{X: x}
 }
 
-func (p *Parser) parseConstStmt() *ast.ConstStmt {
-	if p.trace {
-		defer un(trace(p, "ConstStmt"))
-	}
-
-	pos := p.pos
-	decl := p.tok
-	p.next()
-	if decl != token.Const {
-		p.errorExpected(pos, "const")
-		decl = token.Let
-	}
-
-	lhs := p.parseIdent()
-	tokPos := p.expect(token.Assign)
-	rhs := p.parseExpr()
-
-	return &ast.ConstStmt{
-		ConstPos: pos,
-		Ident:    lhs,
-		TokPos:   tokPos,
-		Value:    rhs,
-	}
-}
-
-func (p *Parser) parseLetStmt() *ast.LetStmt {
-	if p.trace {
-		defer un(trace(p, "LetStmt"))
-	}
-
-	pos := p.pos
-	decl := p.tok
-	p.next()
-	if decl != token.Let {
-		p.errorExpected(pos, "let")
-		decl = token.Let
-	}
-
-	lhs := p.parseIdent()
-
-	var tokPos token.Pos
-	var rhs ast.Expr
-
-	if p.tok == token.Assign {
-		tokPos = p.expect(token.Assign)
-		rhs = p.parseExpr()
-	}
-
-	return &ast.LetStmt{
-		LetPos: pos,
-		Ident:  lhs,
-		TokPos: tokPos,
-		Value:  rhs,
-	}
-}
-
-func (p *Parser) parseReturnStmt() *ast.ReturnStmt {
-	if p.trace {
-		defer un(trace(p, "ReturnStmt"))
-	}
-
-	pos := p.pos
-	p.expect(token.Return)
-	var x ast.Expr
-	if token.IsKeyword(p.tok.String()) {
-		// return null
-		return &ast.ReturnStmt{Return: pos}
-	} else {
-		x = p.parseExpr()
-		return &ast.ReturnStmt{Return: pos, Result: x}
-	}
-}
-
-func (p *Parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
-	if p.trace {
-		defer un(trace(p, "BranchStmt"))
-	}
-
-	pos := p.expect(tok)
-	var label *ast.Ident
-	if p.tok == token.Ident {
-		label = p.parseIdent()
-	}
-
-	return &ast.BranchStmt{TokPos: pos, Tok: tok, Label: label}
-}
-
-func (p *Parser) parseIfStmt() *ast.IfStmt {
-	if p.trace {
-		defer un(trace(p, "IfStmt"))
-	}
-
-	pos := p.expect(token.If)
-	cond := p.parseExpr()
-	var body []ast.Stmt
-	for p.tok != token.End && p.tok != token.EOF && p.tok != token.Else {
-		body = append(body, p.parseStmt())
-	}
-
-	var else_ []ast.Stmt
-	if p.tok == token.Else {
-		p.next()
-		if p.tok == token.If {
-			else_ = []ast.Stmt{p.parseIfStmt()}
-		} else {
-			for p.tok != token.End && p.tok != token.EOF {
-				else_ = append(else_, p.parseStmt())
-			}
-			p.expect(token.End)
-		}
-	} else {
-		p.expect(token.End)
-	}
-
-	return &ast.IfStmt{If: pos, Cond: cond, Body: body, Else: else_, BlockEnd: p.pos}
-}
-
-func (p *Parser) parseForStmt() ast.Stmt {
-	if p.trace {
-		defer un(trace(p, "ForStmt"))
-	}
-
-	pos := p.expect(token.For)
-	ident := p.parseIdent()
-	p.expect(token.In)
-	expr := p.parseExpr()
-
-	var body []ast.Stmt
-	for p.tok != token.End && p.tok != token.EOF {
-		body = append(body, p.parseStmt())
-	}
-	p.expect(token.End)
-
-	return &ast.ForStmt{For: pos, Var: ident, Iterable: expr, Body: body, BlockEnd: p.pos}
-}
-
-func (p *Parser) parseRepeatStmt() ast.Stmt {
-	if p.trace {
-		defer un(trace(p, "RepeatStmt"))
-	}
-
-	pos := p.expect(token.Repeat)
-	switch p.tok {
-	case token.While:
-		p.next()
-		cond := p.parseExpr()
-		var body []ast.Stmt
-		for p.tok != token.End && p.tok != token.EOF {
-			body = append(body, p.parseStmt())
-		}
-		p.expect(token.End)
-		return &ast.RepeatWhileStmt{Repeat: pos, Cond: cond, Body: body, BlockEnd: p.pos}
-	case token.Forever:
-		p.next()
-		var body []ast.Stmt
-		for p.tok != token.End && p.tok != token.EOF {
-			body = append(body, p.parseStmt())
-		}
-		p.expect(token.End)
-		return &ast.RepeatForeverStmt{Repeat: pos, Body: body, BlockEnd: p.pos}
-	default:
-		count := p.parseExpr()
-		p.expect(token.Times)
-		var body []ast.Stmt
-		for p.tok != token.End && p.tok != token.EOF {
-			body = append(body, p.parseStmt())
-		}
-		p.expect(token.End)
-		return &ast.RepeatCountStmt{Repeat: pos, Count: count, Body: body, BlockEnd: p.pos}
-	}
-}
-
 func (p *Parser) parseFile() *ast.File {
 	if p.trace {
 		defer un(trace(p, "File"))
@@ -880,7 +241,20 @@ func (p *Parser) parseFile() *ast.File {
 	f := &ast.File{
 		Size:  p.file.Size(),
 		Stmts: stmts,
+		Name:  p.file.Name(),
 	}
 
 	return f
+}
+
+func (p *Parser) parseIdent() *ast.Ident {
+	pos := p.pos
+	name := "_"
+	if p.tok == token.Ident {
+		name = p.lit
+		p.next()
+	} else {
+		p.expectMsg(token.Ident, "identifier")
+	}
+	return &ast.Ident{NamePos: pos, Name: name}
 }

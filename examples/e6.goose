@@ -1,14 +1,14 @@
 let people = []
 
-people += {
+people.push({
   name: "John",
   age: 30,
-}
+})
 
-people += {
+people.push({
   ["name"]: "Jane",
   ["age"]: 25,
-}
+})
 
 print(people[0].name) // John
 print(people[1].name) // Jane

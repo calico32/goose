@@ -2,6 +2,41 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "interpreter",
+      "type": "go",
+      "request": "launch",
+      "program": "test/interpreter/interpret.go",
+      "env": { "GOOSEROOT": "${workspaceFolder}/test/gooseroot" }
+    },
+    {
+      "name": "parser",
+      "type": "go",
+      "request": "launch",
+      "program": "test/parser/parse.go",
+      "env": { "GOOSEROOT": "${workspaceFolder}/test/gooseroot" }
+    },
+    {
+      "name": "scanner",
+      "type": "go",
+      "request": "launch",
+      "program": "test/scanner/scan.go",
+      "env": { "GOOSEROOT": "${workspaceFolder}/test/gooseroot" }
+    },
+    {
+      "name": "printer",
+      "type": "go",
+      "request": "launch",
+      "program": "test/printer/print.go",
+      "env": { "GOOSEROOT": "${workspaceFolder}/test/gooseroot" }
+    },
+    {
+      "name": "ir",
+      "type": "go",
+      "request": "launch",
+      "program": "test/compiler/ir/ir.go",
+      "env": { "GOOSEROOT": "${workspaceFolder}/test/gooseroot" }
+    },
+    {
       "name": "Extension",
       "type": "extensionHost",
       "request": "launch",

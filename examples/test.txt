@@ -1,0 +1,4 @@
+@everyone, for access to the live codebase, i need:
+- your preferred username (lowercase letters + numbers + \_ + - only; `[a-z_][a-z0-9_-]*`)
+- your PUBLIC ssh key (`cat ~/.ssh/id_rsa.pub` after `ssh-keygen`)
+-

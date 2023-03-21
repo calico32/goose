@@ -11,6 +11,12 @@
     "type": "git",
     "url": ""
   },
+  "scripts": {
+    "generate": "yq syntaxes/goose.tmLanguage.yaml -o=json -P > syntaxes/goose.tmLanguage.json",
+    "watch": "watchexec -w syntaxes -e yaml -r \"yarn run generate\"",
+    "build": "vsce package",
+    "vscode:prepublish": "yarn run generate"
+  },
   "categories": [
     "Programming Languages"
   ],

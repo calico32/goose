@@ -4,8 +4,7 @@ const N = 10
 let i = 0
 
 repeat while i < N
-  // append to array using +=
-  powers += 2 ** i
+  powers.push(2 ** i)
   i++
 end
 

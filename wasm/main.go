@@ -9,10 +9,10 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/wiisportsresort/goose/interpreter"
-	"github.com/wiisportsresort/goose/parser"
-	"github.com/wiisportsresort/goose/scanner"
-	"github.com/wiisportsresort/goose/token"
+	"github.com/calico32/goose/interpreter"
+	"github.com/calico32/goose/parser"
+	"github.com/calico32/goose/scanner"
+	"github.com/calico32/goose/token"
 )
 
 func onError(pos token.Position, msg string) {
@@ -37,7 +37,7 @@ func ptrToString(ptr uint32, size uint32) (ret string) {
 }
 
 // stringToPtr returns a pointer and size pair for the given string
-// in a way that is compatible with WebAssembly numeric types.
+// in a way that is compatible with WebAssembly numeric
 func stringToPtr(s string) (uint32, uint32) {
 	if len(s) == 0 {
 		return 0, 0
