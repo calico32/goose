@@ -1,6 +1,10 @@
 package ast
 
-import "github.com/calico32/goose/token"
+import (
+	"strings"
+
+	"github.com/calico32/goose/token"
+)
 
 type (
 	Literal struct {
@@ -80,3 +84,21 @@ func (*StringLiteralInterpIdent) stringLiteralPart() {}
 func (*StringLiteralInterpExpr) stringLiteralPart()  {}
 
 func (*SymbolStmt) stmtNode() {}
+
+func (s *StringLiteral) String() string {
+	var sb strings.Builder
+	sb.WriteString(s.StringStart.Content)
+	for _, part := range s.Parts {
+		switch p := part.(type) {
+		case *StringLiteralMiddle:
+			sb.WriteString(p.Content)
+		case *StringLiteralInterpIdent:
+			sb.WriteString("$")
+			sb.WriteString(p.Name)
+		case *StringLiteralInterpExpr:
+			sb.WriteString("${expr}")
+		}
+	}
+	sb.WriteString(s.StringEnd.Content)
+	return sb.String()
+}

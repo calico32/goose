@@ -87,7 +87,7 @@ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler) {
 	}
 
 	s.file = file
-	s.dir, _ = filepath.Split(file.Name())
+	s.dir, _ = filepath.Split(file.Specifier())
 	s.src = src
 	s.errorHandler = err
 

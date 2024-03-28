@@ -11,20 +11,20 @@ func (p *Parser) parseRangeExpr(low ast.Expr) *ast.RangeExpr {
 	}
 
 	toPos := p.expect(token.To)
-	high := p.parseExpr()
+	high := p.ParseExpr()
 
 	stepPos := token.NoPos
 	var step ast.Expr
 
 	if p.tok == token.Step {
 		stepPos = p.expect(token.Step)
-		step = p.parseExpr()
+		step = p.ParseExpr()
 	}
 
 	return &ast.RangeExpr{
-		Low:     low,
+		Start:   low,
 		ToPos:   toPos,
-		High:    high,
+		Stop:    high,
 		StepPos: stepPos,
 		Step:    step,
 	}
@@ -72,6 +72,6 @@ func (p *Parser) parseYieldStmt() *ast.ReturnStmt {
 
 	pos := p.pos
 	p.expect(token.Yield)
-	x := p.parseExpr()
+	x := p.ParseExpr()
 	return &ast.ReturnStmt{Return: pos, Result: x}
 }

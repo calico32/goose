@@ -26,7 +26,7 @@ func (p *Parser) parseConstStmt() *ast.ConstStmt {
 		rhs = &ast.BadExpr{From: p.pos, To: p.pos}
 	} else {
 		p.next()
-		rhs = p.parseExpr()
+		rhs = p.ParseExpr()
 	}
 
 	return &ast.ConstStmt{
@@ -57,7 +57,7 @@ func (p *Parser) parseLetStmt() *ast.LetStmt {
 
 	if p.tok == token.Assign {
 		tokPos = p.expect(token.Assign)
-		rhs = p.parseExpr()
+		rhs = p.ParseExpr()
 	}
 
 	return &ast.LetStmt{

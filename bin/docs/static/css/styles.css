@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background-color: #09090b;
+  color: #fafafa;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-zinc-700 rounded-md;
+}
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+.font-mono {
+  font-feature-settings: "calt", "liga", "dlig", "ss01", "ss02", "ss03", "ss04", "ss05", "ss06",
+    "ss07", "ss08";
+}
+
+.navlink {
+  @apply block w-full rounded-md px-4 py-1 mb-1;
+  &:hover {
+    @apply bg-primary-500/20;
+  }
+  &.selected {
+    @apply bg-primary-500/30 font-semibold;
+  }
+  &:has(.navgroup-toggle) {
+    @apply flex items-center justify-between pr-3;
+  }
+  .navgroup-toggle {
+    @apply rotate-0;
+    transition: transform 0.2s;
+  }
+  .navgroup-toggle.open {
+    @apply -rotate-45;
+  }
+}
+
+.navheader {
+  @apply text-xs font-bold text-zinc-300 mt-8 mb-1.5;
+}
+
+#nav {
+  view-transition-name: nav;
+}
+#docs-nav {
+  view-transition-name: docs-nav;
+  ul ul {
+    @apply pl-4;
+  }
+}
+
+.card {
+  @apply border rounded-md border-zinc-600 p-4 bg-zinc-800/50 block h-full transition-colors hover:border-primary-300 hover:bg-zinc-800/90;
+}
+
+@font-face {
+  font-family: "Monaspace Neon";
+  font-weight: 400;
+  font-style: normal;
+  display: swap;
+  src: url("/static/font/MonaspaceNeon-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Palanquin";
+  font-weight: 100;
+  font-style: normal;
+  display: swap;
+  src: url("/static/font/Palanquin-Thin.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Palanquin";
+  font-weight: 200;
+  font-style: normal;
+  display: swap;
+  src: url("/static/font/Palanquin-ExtraLight.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Palanquin";
+  font-weight: 300;
+  font-style: normal;
+  display: swap;
+  src: url("/static/font/Palanquin-Light.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Palanquin";
+  font-weight: 400;
+  font-style: normal;
+  display: swap;
+  src: url("/static/font/Palanquin-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Palanquin";
+  font-weight: 500;
+  font-style: normal;
+  display: swap;
+  src: url("/static/font/Palanquin-Medium.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Palanquin";
+  font-weight: 600;
+  font-style: normal;
+  display: swap;
+  src: url("/static/font/Palanquin-SemiBold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Palanquin";
+  font-weight: 700;
+  font-style: normal;
+  display: swap;
+  src: url("/static/font/Palanquin-Bold.woff2") format("woff2");
+}

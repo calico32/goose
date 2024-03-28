@@ -1,0 +1,11 @@
+{
+  "name": "docs",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tailwindcss build -i static/css/styles.css -m -o static/css/tailwind.css"
+  },
+  "dependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}

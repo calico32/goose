@@ -1,0 +1,10 @@
+{{template "_layout.html" .}}
+
+{{define "title"}}{{.Code}} | Goose{{end}}
+
+{{define "main"}}
+<main class="text-center">
+  <h1 class="text-4xl font-bold">Error</h1>
+  <p class="text-red-500">{{.Message}}</p>
+</main>
+{{end}}

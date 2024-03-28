@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/calico32/goose/ast"
+	. "github.com/calico32/goose/interpreter/lib"
+	"github.com/calico32/goose/lib"
 	"github.com/calico32/goose/parser"
 )
 
@@ -13,15 +15,19 @@ func (i *interp) runExportDeclStmt(scope *Scope, stmt *ast.ExportDeclStmt) StmtR
 	result := i.runStmt(scope, stmt.Stmt)
 
 	if scope != scope.ModuleScope() {
-		i.throw("export declarations must be at the top level")
+		i.Throw("export declarations must be at the top level")
 	}
 
 	if decl, ok := result.(*Decl); !ok {
-		i.throw("declaration expected")
+		i.Throw("declaration expected")
 	} else if _, ok := scope.Module().Exports[decl.Name]; ok {
-		i.throw("duplicate export %s", decl.Name)
+		i.Throw("duplicate export %s", decl.Name)
 	} else {
-		scope.Module().Exports[decl.Name] = scope.Get(decl.Name)
+		scope.Module().Exports[decl.Name] = &Variable{
+			Source:   VariableSourceImport,
+			Value:    decl.Value,
+			Constant: true,
+		}
 	}
 
 	return &Void{}
@@ -29,7 +35,7 @@ func (i *interp) runExportDeclStmt(scope *Scope, stmt *ast.ExportDeclStmt) StmtR
 
 func (i *interp) runExportListStmt(scope *Scope, stmt *ast.ExportListStmt) StmtResult {
 	if scope != scope.ModuleScope() {
-		i.throw("export declarations must be at the top level")
+		i.Throw("export declarations must be at the top level")
 	}
 
 	for _, field := range stmt.List.Fields {
@@ -43,15 +49,15 @@ func (i *interp) runExportListStmt(scope *Scope, stmt *ast.ExportListStmt) StmtR
 			localName = field.Ident.Name
 			exportedName = field.Alias.Name
 		default:
-			i.throw("unknown export field type %T", field)
+			i.Throw("unknown export field type %T", field)
 		}
 
 		if _, ok := scope.Module().Exports[exportedName]; ok {
-			i.throw("duplicate export %s", exportedName)
+			i.Throw("duplicate export %s", exportedName)
 		}
 
 		if !scope.IsDefinedInCurrentScope(localName) {
-			i.throw("undefined name %s", localName)
+			i.Throw("undefined name %s", localName)
 		}
 
 		scope.Module().Exports[exportedName] = scope.Get(localName)
@@ -62,19 +68,16 @@ func (i *interp) runExportListStmt(scope *Scope, stmt *ast.ExportListStmt) StmtR
 
 func (i *interp) runExportSpecStmt(scope *Scope, stmt *ast.ExportSpecStmt) StmtResult {
 	if scope != scope.ModuleScope() {
-		i.throw("export declarations must be at the top level")
+		i.Throw("export declarations must be at the top level")
 	}
 
-	importScope := &Scope{
-		owner:  ScopeOwnerImport,
-		idents: make(map[string]*Variable),
-	}
+	importScope := scope.Fork(ScopeOwnerImport)
 
 	i.runImportSpec(importScope, stmt.Spec)
 
-	for name := range importScope.idents {
+	for name := range importScope.Idents() {
 		if _, ok := scope.Module().Exports[name]; ok {
-			i.throw("duplicate export %s", name)
+			i.Throw("duplicate export %s", name)
 		}
 
 		scope.Module().Exports[name] = importScope.Get(name)
@@ -85,7 +88,7 @@ func (i *interp) runExportSpecStmt(scope *Scope, stmt *ast.ExportSpecStmt) StmtR
 
 func (i *interp) runImportStmt(scope *Scope, stmt *ast.ImportStmt) StmtResult {
 	if scope != scope.ModuleScope() {
-		i.throw("import declarations must be at the top level")
+		i.Throw("import declarations must be at the top level")
 	}
 
 	return i.runImportSpec(scope, stmt.Spec)
@@ -93,35 +96,7 @@ func (i *interp) runImportStmt(scope *Scope, stmt *ast.ImportStmt) StmtResult {
 
 func (i *interp) runImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResult {
 	// TODO: custom import schemes
-	var scheme string
-	var name string
-	specifier := spec.ModuleSpecifier()
-	if strings.Contains(specifier, ":") {
-		colon := strings.Index(specifier, ":")
-		scheme = specifier[:colon]
-		name = specifier[colon+1:]
-	} else if isFilePath(specifier) {
-		scheme = "file"
-		name = specifier
-		if !isFilePath(specifier) {
-			i.throw("invalid file import path %s", specifier)
-		}
-	} else {
-		scheme = "pkg"
-		name = specifier
-		if isFilePath(specifier) {
-			i.throw("invalid package import path %s", specifier)
-		}
-	}
-
-	var module *Module
-	switch scheme {
-	case "file":
-		dir := filepath.Dir(scope.Module().Name)
-		module = i.loadFileModule(name, dir)
-	case "pkg":
-		module = i.loadPackageModule(name)
-	}
+	name, module := i.loadModule(spec.ModuleSpecifier(), scope)
 
 	switch spec := spec.(type) {
 	case *ast.ModuleSpecShow:
@@ -159,7 +134,7 @@ func (i *interp) runImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResult {
 					i.runImportSpec(scope, spec)
 				case *ast.ShowFieldEllipsis:
 					if scope.IsDefinedInCurrentScope(field.Ident.Name) {
-						i.throw("name %s is already defined", field.Ident.Name)
+						i.Throw("name %s is already defined", field.Ident.Name)
 					}
 					// put all remaining exports into an object
 					object := NewComposite()
@@ -167,7 +142,7 @@ func (i *interp) runImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResult {
 						if imported[name] {
 							continue
 						}
-						SetProperty(object, &String{name}, value.Value)
+						SetProperty(object, NewString(name), value.Value)
 					}
 					object.Frozen = true
 
@@ -186,19 +161,19 @@ func (i *interp) runImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResult {
 						localName = asField.Alias.Name
 						exportedName = asField.Ident.Name
 					} else {
-						i.throw("unknown import field type %T", field)
+						i.Throw("unknown import field type %T", field)
 					}
 
 					if _, ok := module.Exports[exportedName]; !ok {
 						if module.Scope.IsDefinedInCurrentScope(exportedName) {
-							i.throw("value %s is defined locally in module %s but is not exported", exportedName, name)
+							i.Throw("value %s is defined locally in module %s but is not exported", exportedName, name)
 						}
-						i.throw("undefined export %s", exportedName)
+						i.Throw("undefined export %s", exportedName)
 					}
 
 					imported[exportedName] = true
 
-					value := module.Scope.Get(exportedName)
+					value := module.Exports[exportedName]
 					scope.Set(localName, value)
 				}
 			}
@@ -206,7 +181,7 @@ func (i *interp) runImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResult {
 	default:
 		object := NewComposite()
 		for name, value := range module.Exports {
-			SetProperty(object, &String{name}, value.Value) // TODO: reassignment can change the value
+			SetProperty(object, NewString(name), value.Value) // TODO: reassignment can change the value
 		}
 		object.Frozen = true
 
@@ -216,14 +191,14 @@ func (i *interp) runImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResult {
 			moduleName = aliased.Alias.Name
 		} else {
 			var err error
-			moduleName, err = ast.ModuleName(name)
+			moduleName, err = ast.ModuleName(strings.TrimPrefix(name, module.Scheme+":"))
 			if err != nil {
-				i.throw(err.Error())
+				i.Throw(err.Error())
 			}
 		}
 
 		if scope.IsDefinedInCurrentScope(moduleName) {
-			i.throw("name %s is already defined", moduleName)
+			i.Throw("name %s is already defined", moduleName)
 		}
 
 		scope.Set(moduleName, &Variable{
@@ -235,55 +210,98 @@ func (i *interp) runImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResult {
 	return &Void{}
 }
 
-func (i *interp) loadFileModule(name string, dir string) *Module {
-	if module, ok := i.modules[name]; ok {
+func (i *interp) loadModule(specifier string, scope *Scope) (string, *Module) {
+	var scheme string
+	var name string
+	if strings.Contains(specifier, ":") {
+		colon := strings.Index(specifier, ":")
+		scheme = specifier[:colon]
+		name = specifier[colon+1:]
+	} else if isFilePath(specifier) {
+		// inherit the scheme from the parent module
+		scheme = scope.Module().Scheme
+		name = filepath.Join(filepath.Dir(strings.TrimPrefix(scope.Module().Specifier, scope.Module().Scheme+":")), specifier)
+		if scheme == "file" && !isFilePath(specifier) {
+			i.Throw("invalid file import path %s", specifier)
+		}
+	} else {
+		scheme = "pkg"
+		name = strings.TrimPrefix(specifier, "pkg:")
+		if isFilePath(specifier) {
+			i.Throw("invalid package import path %s", specifier)
+		}
+	}
+
+	if module, ok := i.modules[specifier]; ok {
+		return specifier, module
+	}
+
+	var module *Module
+	switch scheme {
+	case "file":
+		dir := strings.TrimPrefix(filepath.Dir(scope.Module().Specifier), "file:")
+		module = i.loadFileModule(name, dir)
+	case "pkg":
+		module = i.loadPackageModule(scheme + ":" + name)
+	case "std":
+		module = i.loadStdModule(scheme + ":" + name)
+	default:
+		i.Throw("unknown import scheme %s", scheme)
+	}
+	return scheme + ":" + name, module
+}
+
+func (i *interp) loadFileModule(specifier string, dir string) *Module {
+	if module, ok := i.modules[specifier]; ok {
 		return module
 	}
 
-	if !filepath.IsAbs(name) {
-		name = filepath.Join(dir, name)
+	path := strings.TrimPrefix(specifier, "file:")
+
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(dir, path)
 	}
 
-	info, err := os.Stat(name)
+	info, err := os.Stat(path)
 	if err != nil {
-		i.throw(err.Error())
+		i.Throw(err.Error())
 	}
 
 	if info.IsDir() {
-		newName := filepath.Join(name, "_module.goose")
-		_, err = os.Stat(newName)
+		newPath := filepath.Join(path, "index.goose")
+		_, err = os.Stat(newPath)
 		if err != nil {
 			if os.IsNotExist(err) {
-				i.throw("_module.goose not found in directory %s", name)
+				i.Throw("index.goose not found in directory %s", specifier)
 			}
 
-			i.throw(err.Error())
+			i.Throw(err.Error())
 		}
 
-		name = newName
+		path = newPath
 	}
 
-	content, err := os.ReadFile(name)
+	content, err := os.ReadFile(path)
 	if err != nil {
-		i.throw(err.Error())
+		i.Throw(err.Error())
 	}
 
-	astFile, err := parser.ParseFile(i.fset, name, content, nil)
+	astFile, err := parser.ParseFile(i.fset, specifier, content, nil)
 	if err != nil {
-		i.throw(err.Error())
+		i.Throw(err.Error())
 	}
 
 	module := &Module{
-		File:    astFile,
+		Module:  astFile,
 		Exports: make(map[string]*Variable),
 		Scope:   i.global.Fork(ScopeOwnerModule),
 	}
 
-	module.Scope.module = module
-	i.modules[name] = module
-	i.runModule(i.modules[name])
+	module.Scope.SetModule(module)
+	i.modules[specifier] = module
+	i.runModule(module)
 
-	return i.modules[name]
+	return module
 }
 
 func (i *interp) loadPackageModule(specifier string) *Module {
@@ -299,12 +317,7 @@ func (i *interp) loadPackageModule(specifier string) *Module {
 		path = specifier[slash+1:]
 	}
 
-	var dir string
-	if name == "std" {
-		dir = filepath.Join(i.gooseRoot, "std")
-	} else {
-		dir = filepath.Join(i.gooseRoot, "pkg", name)
-	}
+	dir := filepath.Join(i.gooseRoot, "pkg", name)
 
 	return i.loadFileModule(path, dir)
 }
@@ -315,4 +328,49 @@ func isFilePath(path string) bool {
 		strings.HasPrefix(path, "./") ||
 		strings.HasPrefix(path, "../") ||
 		strings.HasPrefix(path, "/")
+}
+
+func (i *interp) loadStdModule(specifier string) *Module {
+	if module, ok := i.modules[specifier]; ok {
+		return module
+	}
+
+	bindataPath := filepath.Join("std", strings.TrimPrefix(specifier, "std:"))
+	content, err := lib.Stdlib.ReadFile(bindataPath)
+	if err != nil {
+		// try to find index.goose in the directory
+		bindataPath = filepath.Join(bindataPath, "index.goose")
+		content, err = lib.Stdlib.ReadFile(bindataPath)
+		if err != nil {
+			i.Throw("module %s or %s/index.goose not found", specifier, specifier)
+		} else {
+			specifier += "/index.goose"
+		}
+	}
+
+	file, err := parser.ParseFile(i.fset, specifier, content, nil)
+	if err != nil {
+		i.Throw(err.Error())
+	}
+
+	module := &Module{
+		Module:  file,
+		Exports: make(map[string]*Variable),
+		Scope:   i.global.Fork(ScopeOwnerModule),
+	}
+
+	module.Scope.SetModule(module)
+	i.modules[specifier] = module
+	i.runModule(module)
+
+	return module
+}
+
+func (i *interp) copyModuleExportsToGlobal(module *Module) {
+	for name, value := range module.Exports {
+		i.global.Set(name, &Variable{
+			Constant: true,
+			Value:    value.Value,
+		})
+	}
 }

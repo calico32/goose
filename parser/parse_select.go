@@ -15,7 +15,7 @@ func (p *Parser) parseBindExpr(c ast.Expr) ast.Expr {
 	var sel ast.Expr
 	if p.tok == token.LParen {
 		p.next()
-		sel = p.parseExpr()
+		sel = p.ParseExpr()
 		p.expect(token.RParen)
 	} else {
 		sel = p.parseOperand()
@@ -68,7 +68,7 @@ func (p *Parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 	isSlicing := false
 
 	if p.tok != token.Colon {
-		left = p.parseExpr()
+		left = p.ParseExpr()
 		if p.tok == token.Colon {
 			isSlicing = true
 			p.next()
@@ -78,7 +78,7 @@ func (p *Parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 	}
 
 	if p.tok != token.RBracket {
-		right = p.parseExpr()
+		right = p.ParseExpr()
 	}
 
 	if left == nil && right == nil {

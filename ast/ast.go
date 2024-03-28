@@ -24,6 +24,14 @@ type Node interface {
 	End() token.Pos
 }
 
+type PosRange struct {
+	From token.Pos
+	To   token.Pos
+}
+
+func (p PosRange) Pos() token.Pos { return p.From }
+func (p PosRange) End() token.Pos { return p.To }
+
 type Expr interface {
 	Node
 	exprNode()
@@ -61,12 +69,27 @@ func (*BadStmt) stmtNode()     {}
 func (*EmptyStmt) stmtNode()   {}
 func (*LabeledStmt) stmtNode() {}
 
-type File struct {
-	Type ModuleType
-	Name string
+type Module struct {
+	Type      ModuleType
+	Specifier string
+	Scheme    string
 
 	Size  int
 	Stmts []Stmt
+}
+
+func (m *Module) Pos() token.Pos {
+	if len(m.Stmts) > 0 {
+		return m.Stmts[0].Pos()
+	}
+	return token.NoPos
+}
+
+func (m *Module) End() token.Pos {
+	if len(m.Stmts) > 0 {
+		return m.Stmts[len(m.Stmts)-1].End()
+	}
+	return token.NoPos
 }
 
 type ModuleType int

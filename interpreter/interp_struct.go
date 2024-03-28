@@ -1,19 +1,22 @@
 package interpreter
 
-import "github.com/calico32/goose/ast"
+import (
+	"github.com/calico32/goose/ast"
+	. "github.com/calico32/goose/interpreter/lib"
+)
 
 func (i *interp) runStructStmt(scope *Scope, stmt *ast.StructStmt) StmtResult {
 	defer un(trace(i, "struct stmt"))
 
 	if scope.IsDefinedInCurrentScope(stmt.Name.Name) {
-		i.throw("cannot redefine variable %s", stmt.Name.Name)
+		i.Throw("cannot redefine variable %s", stmt.Name.Name)
 	}
 
 	// validate parameters
 	fieldNames := map[string]bool{}
 	for _, param := range stmt.Fields.List {
 		if fieldNames[param.Ident.Name] {
-			i.throw("duplicate field %s", param.Ident.Name)
+			i.Throw("duplicate field %s", param.Ident.Name)
 
 		}
 		fieldNames[param.Ident.Name] = true
@@ -31,11 +34,14 @@ func (i *interp) runStructStmt(scope *Scope, stmt *ast.StructStmt) StmtResult {
 	}
 
 	proto := NewComposite()
+	proto.Name = stmt.Name.Name
+
+	closure := scope.Fork(ScopeOwnerClosure)
 
 	var executor FuncType = func(ctx *FuncContext) *Return {
 		// create new scope
 		// TODO: closures
-		newScope := ctx.Scope.Fork(ScopeOwnerStruct)
+		newScope := closure.Fork(ScopeOwnerStruct)
 
 		// create new composite
 		obj := &Composite{
@@ -60,10 +66,10 @@ func (i *interp) runStructStmt(scope *Scope, stmt *ast.StructStmt) StmtResult {
 				})
 			}
 
-			if set, ok := obj.Properties[PropertyKeyString]; ok {
+			if set, ok := obj.Properties[PKString]; ok {
 				set[param.Ident.Name] = v
 			} else {
-				obj.Properties[PropertyKeyString] = map[string]Value{
+				obj.Properties[PKString] = map[string]Value{
 					param.Ident.Name: v,
 				}
 			}
@@ -80,11 +86,11 @@ func (i *interp) runStructStmt(scope *Scope, stmt *ast.StructStmt) StmtResult {
 			result := i.runStmts(newScope, stmt.Init.Body)
 			switch result.(type) {
 			case *Return, *Break, *Continue:
-				i.throw("cannot return or branch from struct initializer")
+				i.Throw("cannot return or branch from struct initializer")
 			}
 		}
 
-		return &Return{obj}
+		return NewReturn(obj)
 	}
 
 	value := &Func{

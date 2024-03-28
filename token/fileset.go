@@ -2,6 +2,7 @@ package token
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -36,12 +37,19 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 	if size < 0 {
 		panic(fmt.Sprintf("token.FileSet: size (%d) < 0", size))
 	}
+	scheme, _, found := strings.Cut(filename, ":")
+
+	if !found {
+		scheme = "file"
+	}
+
 	f := &File{
-		set:   s,
-		name:  filename,
-		base:  base,
-		size:  size,
-		lines: []int{0},
+		set:       s,
+		specifier: filename,
+		scheme:    scheme,
+		base:      base,
+		size:      size,
+		lines:     []int{0},
 	}
 	base += size + 1
 	if base < 0 {

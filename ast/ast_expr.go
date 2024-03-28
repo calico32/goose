@@ -11,6 +11,11 @@ type (
 		From, To token.Pos
 	}
 
+	FrozenExpr struct {
+		Frozen token.Pos
+		X      Expr
+	}
+
 	Ident struct {
 		NamePos token.Pos
 		Name    string
@@ -83,6 +88,7 @@ type (
 
 func (s *ExprStmt) Pos() token.Pos            { return s.X.Pos() }
 func (x *BadExpr) Pos() token.Pos             { return x.From }
+func (x *FrozenExpr) Pos() token.Pos          { return x.Frozen }
 func (x *Ident) Pos() token.Pos               { return x.NamePos }
 func (x *ParenExpr) Pos() token.Pos           { return x.Lparen }
 func (x *SelectorExpr) Pos() token.Pos        { return x.X.Pos() }
@@ -97,6 +103,7 @@ func (x *AwaitExpr) Pos() token.Pos           { return x.Await }
 
 func (s *ExprStmt) End() token.Pos            { return s.X.End() }
 func (x *BadExpr) End() token.Pos             { return x.To }
+func (x *FrozenExpr) End() token.Pos          { return x.X.End() }
 func (x *Ident) End() token.Pos               { return token.Pos(int(x.NamePos) + len(x.Name)) }
 func (x *ParenExpr) End() token.Pos           { return x.Rparen + 1 }
 func (x *SelectorExpr) End() token.Pos        { return x.Sel.End() }
@@ -111,6 +118,7 @@ func (x *AwaitExpr) End() token.Pos           { return x.X.End() }
 
 func (*ExprStmt) stmtNode()            {}
 func (*BadExpr) exprNode()             {}
+func (*FrozenExpr) exprNode()          {}
 func (*Ident) exprNode()               {}
 func (*ParenExpr) exprNode()           {}
 func (*SelectorExpr) exprNode()        {}

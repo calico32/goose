@@ -1,0 +1,29 @@
+{{template "docs_layout.html" .}}
+
+{{define "docs-title"}}Documentation{{end}}
+
+{{define "docs-content"}}
+<section class="space-y-8">
+  <h1 class="text-3xl font-bold">Documentation</h1>
+  <p>
+    Welcome to the goose documentation. This documentation is a work in progress
+    and will be updated as the language and standard library evolve.
+  </p>
+
+  <h2 class="text-xl font-semibold">Table of Contents</h2>
+  <ul class="grid grid-cols-1 gap-4">
+    <li>
+      <a href="/docs/language" class="card">
+        <h3 class="text-xl font-bold">Language Documentation</h3>
+        <p>Learn about the goose programming language.</p>
+      </a>
+    </li>
+    <li>
+      <a href="/docs/api" class="card">
+        <h3 class="text-xl font-bold">API Reference</h3>
+        <p>Explore the goose standard library.</p>
+      </a>
+    </li>
+  </ul>
+</section>
+{{end}}

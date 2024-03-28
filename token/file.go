@@ -10,10 +10,11 @@ type Lockable interface {
 }
 
 type File struct {
-	set  *FileSet
-	name string
-	base int
-	size int
+	set       *FileSet
+	specifier string
+	scheme    string // file, pkg, std
+	base      int
+	size      int
 
 	mutex sync.Mutex
 	lines []int
@@ -30,9 +31,14 @@ func lock(mutex *sync.Mutex) *sync.Mutex {
 	return mutex
 }
 
-// Name returns the file name of file f as registered with AddFile.
-func (f *File) Name() string {
-	return f.name
+// Specifier returns the file name of file f as registered with AddFile.
+func (f *File) Specifier() string {
+	return f.specifier
+}
+
+// Scheme returns the scheme of file f as registered with AddFile.
+func (f *File) Scheme() string {
+	return f.scheme
 }
 
 // Base returns the base offset of file f as registered with AddFile.
@@ -148,7 +154,7 @@ func (f *File) Position(p Pos) (pos Position) {
 func (f *File) unpack(offset int) (filename string, line, column int) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
-	filename = f.name
+	filename = f.specifier
 	if i := searchInts(f.lines, offset); i >= 0 {
 		line, column = i+1, offset-f.lines[i]+1
 	}

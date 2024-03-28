@@ -301,9 +301,9 @@ func (p *NodePrinter) Print(node Node) {
 		p.Print(n.X)
 	case *RangeExpr:
 		p.write("(")
-		p.Print(n.Low)
+		p.Print(n.Start)
 		p.write(" to ")
-		p.Print(n.High)
+		p.Print(n.Stop)
 		if n.Step != nil {
 			p.write(" step ")
 			p.Print(n.Step)

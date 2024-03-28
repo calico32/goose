@@ -1,3 +1,0 @@
-package lib
-
-//go:generate go run github.com/go-bindata/go-bindata/go-bindata@latest -o bindata.go -pkg lib -prefix ../ ../lib/std/...

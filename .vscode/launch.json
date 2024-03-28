@@ -41,6 +41,24 @@
       "type": "extensionHost",
       "request": "launch",
       "args": ["--extensionDevelopmentPath=${workspaceFolder}/extension"]
+    },
+    {
+      "name": "main",
+      "type": "go",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/cmd/goose.go",
+      "args": ["run", "${workspaceFolder}/test/main.goose"],
+      "env": { "GOOSEROOT": "${workspaceFolder}/test/gooseroot" },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "e1",
+      "type": "go",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/cmd/goose.go",
+      "args": ["run", "${workspaceFolder}/examples/e1.goose"],
+      "env": { "GOOSEROOT": "${workspaceFolder}/test/gooseroot" },
+      "console": "integratedTerminal"
     }
   ]
 }

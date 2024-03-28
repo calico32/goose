@@ -137,4 +137,5 @@ var tokenTable = tokens{
 		'=': token.BitXorAssign,
 	},
 	'~': token.BitNot,
+	'$': token.MatchBind,
 }

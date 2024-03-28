@@ -5,7 +5,7 @@ import (
 	"github.com/calico32/goose/token"
 )
 
-func (p *Parser) parseExpr() ast.Expr {
+func (p *Parser) ParseExpr() ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Expression"))
 	}
@@ -97,7 +97,7 @@ func (p *Parser) parseOperand() (e ast.Expr) {
 		e = p.parseBracketPropertyExpr()
 	case token.LParen:
 		lparen := p.expect(token.LParen)
-		x := p.parseExpr()
+		x := p.ParseExpr()
 		rparen := p.expect(token.RParen)
 		e = &ast.ParenExpr{Lparen: lparen, X: x, Rparen: rparen}
 	case token.LBrace:
@@ -108,6 +108,13 @@ func (p *Parser) parseOperand() (e ast.Expr) {
 		e = p.parseGeneratorExpr(0)
 	case token.Throw:
 		e = p.parseThrowExpr()
+	case token.Frozen:
+		pos := p.pos
+		p.next()
+		x := p.ParseExpr()
+		e = &ast.FrozenExpr{Frozen: pos, X: x}
+	case token.Native:
+		e = p.parseNativeExpr()
 	case token.Async:
 		pos := p.pos
 		p.next()
@@ -131,6 +138,8 @@ func (p *Parser) parseOperand() (e ast.Expr) {
 		}
 	case token.Do:
 		e = p.parseDoExpr()
+	case token.Match:
+		e = p.parseMatchExpr()
 	default:
 		pos := p.pos
 		p.errorExpected(pos, "operand")

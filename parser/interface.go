@@ -12,15 +12,17 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/calico32/goose/ast"
+	"github.com/calico32/goose/lib"
 	"github.com/calico32/goose/token"
 )
 
 // If src != nil, readSource converts src to a []byte if possible;
 // otherwise it returns an error. If src == nil, readSource returns
 // the result of reading the file specified by filename.
-func readSource(filename string, src any) ([]byte, error) {
+func readSource(specifier string, src any) ([]byte, error) {
 	if src != nil {
 		switch s := src.(type) {
 		case string:
@@ -37,10 +39,32 @@ func readSource(filename string, src any) ([]byte, error) {
 		}
 		return nil, errors.New("invalid source")
 	}
-	return os.ReadFile(filename)
+
+	parts := strings.Split(specifier, ":")
+	var scheme string
+	var path string
+	if len(parts) == 1 {
+		scheme = "file"
+		path = parts[0]
+	} else {
+		scheme = parts[0]
+		path = strings.Join(parts[1:], ":")
+	}
+
+	switch scheme {
+	case "file":
+		return os.ReadFile(path)
+	case "pkg":
+		// TODO: implement
+		return nil, errors.New("pkg scheme not implemented")
+	case "std":
+		return lib.Stdlib.ReadFile(filepath.Join("std", path))
+	default:
+		return nil, errors.New("invalid scheme")
+	}
 }
 
-// ParseFile parses the source code of a single Go source file and returns
+// ParseFile parses the source code of a single Goose source file and returns
 // the corresponding ast.File node. The source code may be provided via
 // the filename of the source file, or via the src parameter.
 //
@@ -62,44 +86,40 @@ func readSource(filename string, src any) ([]byte, error) {
 // errors were found, the result is a partial AST (with ast.Bad* nodes
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by source position.
-func ParseFile(fset *token.FileSet, absolutePath string, src any, trace io.Writer) (f *ast.File, err error) {
+func ParseFile(fset *token.FileSet, specifier string, src any, trace io.Writer) (f *ast.Module, err error) {
 	if fset == nil {
 		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
 	}
 
-	if !filepath.IsAbs(absolutePath) {
-		panic("parser.ParseFile: filename must be absolute path")
-	}
-
 	// get source
-	text, err := readSource(absolutePath, src)
+	text, err := readSource(specifier, src)
 	if err != nil {
 		return nil, err
 	}
 
 	var p Parser
-	defer func() {
-		if e := recover(); e != nil {
-			// set result values
-			if f == nil {
-				// source is not a valid Go source file - satisfy
-				// ParseFile API and return a valid (but) empty
-				// *ast.File
-				f = &ast.File{
-					// Name:  new(ast.Ident),
-					// Scope: ast.NewScope(nil),
-				}
-			}
+	// defer func() {
+	// 	if e := recover(); e != nil {
+	// 		// set result values
+	// 		if f == nil {
+	// 			// source is not a valid Go source file - satisfy
+	// 			// ParseFile API and return a valid (but) empty
+	// 			// *ast.File
+	// 			f = &ast.Module{
+	// 				// Name:  new(ast.Ident),
+	// 				// Scope: ast.NewScope(nil),
+	// 			}
+	// 		}
 
-			p.errors.Sort()
-			err = p.errors.Err()
-			panic(e)
-		}
-	}()
+	// 		p.errors.Sort()
+	// 		err = p.errors.Err()
+	// 		panic(e)
+	// 	}
+	// }()
 
 	// parse source
-	p.init(fset, absolutePath, text, trace)
-	f = p.parseFile()
+	p.Init(fset, specifier, text, trace)
+	f = p.ParseFile()
 
 	if len(p.errors) > 0 {
 		p.errors.Sort()
@@ -111,7 +131,7 @@ func ParseFile(fset *token.FileSet, absolutePath string, src any, trace io.Write
 
 // ParseExprFrom is a convenience function for parsing an expression.
 // The arguments have the same meaning as for ParseFile, but the source must
-// be a valid Go (type or value) expression. Specifically, fset must not
+// be a valid Goose (type or value) expression. Specifically, fset must not
 // be nil.
 //
 // If the source couldn't be read, the returned AST is nil and the error
@@ -119,13 +139,13 @@ func ParseFile(fset *token.FileSet, absolutePath string, src any, trace io.Write
 // errors were found, the result is a partial AST (with ast.Bad* nodes
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by source position.
-func ParseExprFrom(fset *token.FileSet, filename string, src any, trace io.Writer) (expr ast.Expr, err error) {
+func ParseExprFrom(fset *token.FileSet, specifier string, src any, trace io.Writer) (expr ast.Expr, err error) {
 	if fset == nil {
 		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
 	}
 
 	// get source
-	text, err := readSource(filename, src)
+	text, err := readSource(specifier, src)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +160,8 @@ func ParseExprFrom(fset *token.FileSet, filename string, src any, trace io.Write
 	}()
 
 	// parse expr
-	p.init(fset, filename, text, trace)
-	expr = p.parseExpr()
+	p.Init(fset, specifier, text, trace)
+	expr = p.ParseExpr()
 
 	p.expect(token.EOF)
 

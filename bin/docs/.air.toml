@@ -1,0 +1,9 @@
+[build]
+  pre_cmd = ["go generate ./..."]
+  exclude_dir = ["assets", "tmp", "vendor", "node_modules"]
+  delay = 1
+  include_ext = ["go", "tpl", "tmpl", "html", "css"]
+
+[screen]
+  clear_on_rebuild = true
+  keep_scroll = true

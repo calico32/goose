@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/calico32/goose/ast"
+
+	. "github.com/calico32/goose/interpreter/lib"
 )
 
 func (i *interp) evalFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
@@ -11,7 +13,7 @@ func (i *interp) evalFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
 
 	if expr.Name != nil && expr.Receiver == nil {
 		if scope.IsDefinedInCurrentScope(expr.Name.Name) {
-			i.throw("name %s is already defined", expr.Name.Name)
+			i.Throw("name %s is already defined", expr.Name.Name)
 		}
 	}
 
@@ -19,7 +21,7 @@ func (i *interp) evalFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
 	paramNames := map[string]bool{}
 	for _, param := range expr.Params.List {
 		if paramNames[param.Ident.Name] {
-			i.throw("duplicate parameter %s", param.Ident.Name)
+			i.Throw("duplicate parameter %s", param.Ident.Name)
 		}
 		paramNames[param.Ident.Name] = true
 	}
@@ -40,19 +42,20 @@ func (i *interp) evalFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
 		paramDefaults = append(paramDefaults, v.Clone())
 	}
 
+	closure := scope.Fork(ScopeOwnerClosure)
+
 	// TODO: async
 
 	var executor FuncType = func(ctx *FuncContext) (ret *Return) {
 		// create new scope
-		// TODO: closures
-		funcScope := ctx.Scope.Fork(ScopeOwnerFunc)
+		funcScope := closure.Fork(ScopeOwnerFunc)
 
 		// use memo cache if applicable
 		if expr.Memo.IsValid() {
 			// hash the arguments
 			hash := ""
 			for _, arg := range ctx.Args {
-				hash += fmt.Sprintf("%s|%v,", arg.Type(), arg)
+				hash += fmt.Sprintf("%s|%v,", arg.Type(), arg.Hash())
 			}
 			hash = hash[:len(hash)-1]
 
@@ -90,7 +93,7 @@ func (i *interp) evalFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
 
 		if expr.Arrow.IsValid() {
 			result := i.evalExpr(funcScope, expr.ArrowExpr)
-			return &Return{result}
+			return NewReturn(&result)
 		}
 
 		result := i.runStmts(funcScope, expr.Body)
@@ -98,10 +101,10 @@ func (i *interp) evalFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
 		case *Return:
 			return result
 		case *Break, *Continue, *Yield:
-			i.throw("cannot branch from function")
+			i.Throw("cannot branch from function")
 		}
 
-		return &Return{nil}
+		return NewReturn(NullValue)
 	}
 
 	value := &Func{
@@ -116,24 +119,24 @@ func (i *interp) evalFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
 			// TODO: limit to current module
 			constructor := scope.Get(expr.Receiver.Name)
 			if constructor == nil {
-				i.throw("unknown type %s", expr.Receiver.Name)
+				i.Throw("unknown type %s", expr.Receiver.Name)
 			}
 
 			if val, ok := constructor.Value.(*Func); !ok || val.NewableProto == nil {
-				i.throw("%s is not a type", expr.Receiver.Name)
+				i.Throw("%s is not a type", expr.Receiver.Name)
 			}
 
 			proto := constructor.Value.(*Func).NewableProto
 
-			if proto.Properties[PropertyKeyString] == nil {
-				proto.Properties[PropertyKeyString] = make(map[string]Value)
+			if proto.Properties[PKString] == nil {
+				proto.Properties[PKString] = make(map[string]Value)
 			}
 
-			if _, ok := proto.Properties[PropertyKeyString][expr.Name.Name]; ok {
-				i.throw("duplicate receiver function %s", expr.Name.Name)
+			if _, ok := proto.Properties[PKString][expr.Name.Name]; ok {
+				i.Throw("duplicate receiver function %s", expr.Name.Name)
 			}
 
-			proto.Properties[PropertyKeyString][expr.Name.Name] = value
+			proto.Properties[PKString][expr.Name.Name] = value
 		} else {
 			scope.Set(expr.Name.Name, &Variable{
 				Constant: true, // functions are constants
@@ -153,7 +156,7 @@ func (i *interp) evalCallExpr(scope *Scope, expr *ast.CallExpr) Value {
 	switch fexpr := expr.Func.(type) {
 	case *ast.SelectorExpr:
 		this = i.evalExpr(scope, fexpr.X)
-		fn = GetProperty(this, &String{fexpr.Sel.Name}) // TODO: check type
+		fn = GetProperty(this, NewString(fexpr.Sel.Name)) // TODO: check type
 	case *ast.BracketSelectorExpr:
 		this = i.evalExpr(scope, fexpr.X)
 		sel := i.evalExpr(scope, fexpr.Sel)
@@ -166,7 +169,7 @@ func (i *interp) evalCallExpr(scope *Scope, expr *ast.CallExpr) Value {
 	}
 
 	if _, ok := fn.(*Func); !ok {
-		i.throw("expression of type %s is not callable", fn.Type())
+		i.Throw("expression of type %s is not callable", fn.Type())
 	}
 
 	args := make([]Value, len(expr.Args))
@@ -177,7 +180,7 @@ func (i *interp) evalCallExpr(scope *Scope, expr *ast.CallExpr) Value {
 	}
 
 	result := fn.(*Func).Executor(&FuncContext{
-		interp: i,
+		Interp: i,
 		Scope:  scope,
 		This:   this,
 		Args:   args,
@@ -197,7 +200,7 @@ func (i *interp) evalBindExpr(scope *Scope, expr *ast.BindExpr) Value {
 		rhs.This = x
 		return rhs
 	} else {
-		i.throw("cannot bind non-function value")
+		i.Throw("cannot bind non-function value")
 		return nil
 	}
 }
@@ -211,5 +214,5 @@ func (i *interp) runReturnStmt(scope *Scope, stmt *ast.ReturnStmt) StmtResult {
 		ret = i.evalExpr(scope, stmt.Result)
 	}
 
-	return &Return{ret}
+	return NewReturn(&ret)
 }

@@ -19,9 +19,9 @@ type (
 	}
 
 	RangeExpr struct {
-		Low     Expr
+		Start   Expr
 		ToPos   token.Pos
-		High    Expr
+		Stop    Expr
 		StepPos token.Pos
 		Step    Expr
 	}
@@ -34,7 +34,7 @@ func (s *GeneratorExpr) Pos() token.Pos {
 	return s.Generator
 }
 func (s *YieldStmt) Pos() token.Pos { return s.Yield }
-func (x *RangeExpr) Pos() token.Pos { return x.Low.Pos() }
+func (x *RangeExpr) Pos() token.Pos { return x.Start.Pos() }
 
 func (s *GeneratorExpr) End() token.Pos { return s.BlockEnd + 3 }
 func (s *YieldStmt) End() token.Pos {
@@ -47,7 +47,7 @@ func (x *RangeExpr) End() token.Pos {
 	if x.Step != nil {
 		return x.Step.End()
 	}
-	return x.High.End()
+	return x.Stop.End()
 }
 func (*GeneratorExpr) exprNode() {}
 func (*YieldStmt) stmtNode()     {}

@@ -30,7 +30,7 @@ func push(i *interp, node ast.Node) *interp {
 
 func pop(i *interp) {
 	if len(i.posStack) == 0 {
-		i.throw("stack underflow")
+		i.Throw("stack underflow")
 	}
 
 	i.posStack = i.posStack[:len(i.posStack)-1]
@@ -59,6 +59,6 @@ func (i *interp) currentPos() token.Pos {
 	return i.posStack[len(i.posStack)-1]
 }
 
-func (i *interp) throw(msg string, parts ...any) {
+func (i *interp) Throw(msg string, parts ...any) {
 	panic(fmt.Errorf("%s: Goose error: %s", i.fset.Position(i.currentPos()), fmt.Sprintf(msg, parts...)))
 }

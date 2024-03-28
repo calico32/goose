@@ -1,21 +1,27 @@
-// pipeline operator
-// value on the left is passed as _ to the expression on the right
-// evaluated left to right
+import "std:collections" show { Stack }
+import "std:readline"
 
-fn add(x, y) -> x + y
+print("Enter a stack expression: ")
+let input = readline.read()
 
-let x = 10
+let stack = Stack()
 
-add(x, 5)?
-  -> add(_?, 10)?
-  -> add(_?, 15)?
-  -> add(_?, 20)?
-  -> _?
+for token in input.split(" ")
+  if token == "+" || token == "-" || token == "*" || token == "/"
+    let b = stack.pop()
+    let a = stack.pop()
+    if token == "+"
+      stack.push(a + b)
+    else if token == "-"
+      stack.push(a - b)
+    else if token == "*"
+      stack.push(a * b)
+    else if token == "/"
+      stack.push(a / b)
+    end
+  else
+    stack.push(float.parse(token))
+  end
+end
 
-
-async fn example() ->
-  await http.get("https://people.example.com")
-    -> await _.json()
-    -> _.people.map(fn(p) -> p.name)
-    -> random.choice(_)
-    -> printf("hello %s", _)
+println("Result: ${stack.pop()}")

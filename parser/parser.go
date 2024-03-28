@@ -33,8 +33,8 @@ type Parser struct {
 	// inRhs   bool
 }
 
-func (p *Parser) init(fset *token.FileSet, filename string, src []byte, trace io.Writer) {
-	p.file = fset.AddFile(filename, -1, len(src))
+func (p *Parser) Init(fset *token.FileSet, specifier string, src []byte, trace io.Writer) {
+	p.file = fset.AddFile(specifier, -1, len(src))
 	p.trace = trace != nil
 	if p.trace {
 		p.traceWriter = trace
@@ -63,6 +63,9 @@ func (p *Parser) printTrace(a ...any) {
 }
 
 func trace(p *Parser, msg string) *Parser {
+	if p.traceWriter == nil {
+		return p
+	}
 	p.printTrace(msg, "(")
 	p.indent++
 	return p
@@ -70,6 +73,9 @@ func trace(p *Parser, msg string) *Parser {
 
 // Usage pattern: defer un(trace(p, "..."))
 func un(p *Parser) {
+	if p.traceWriter == nil {
+		return
+	}
 	p.indent--
 	p.printTrace(")")
 }
@@ -133,8 +139,9 @@ func (p *Parser) parseStmt() (s ast.Stmt) {
 		// tokens that may start an expression
 		token.Ident, token.Int, token.Float, token.LParen, token.LBracket, token.LBrace, token.StringStart, token.Null, // operands
 		token.Add, token.Sub, token.Mul, token.LogNot, // unary operators
-		token.Memo, token.Func, token.Generator, // function-like
-		token.Await, token.Throw, token.Do: // other
+		token.Memo, token.Func, token.Generator, // function declarations
+		token.Throw,                                      // throw statement
+		token.Await, token.Do, token.Frozen, token.Match: // expression blocks
 		s = p.parseSimpleStmt()
 	case token.Const:
 		s = p.parseConstStmt()
@@ -193,14 +200,14 @@ func (p *Parser) parseSimpleStmt() ast.Stmt {
 		defer un(trace(p, "SimpleStmt"))
 	}
 
-	x := p.parseExpr()
+	x := p.ParseExpr()
 
 	switch p.tok {
 	case token.Assign, token.AddAssign, token.SubAssign, token.MulAssign, token.QuoAssign, token.RemAssign, token.PowAssign:
 		tok := p.tok
 		tokPos := p.pos
 		p.next()
-		rhs := p.parseExpr()
+		rhs := p.ParseExpr()
 		return &ast.AssignStmt{
 			Lhs:    x,
 			TokPos: tokPos,
@@ -216,7 +223,7 @@ func (p *Parser) parseSimpleStmt() ast.Stmt {
 	return &ast.ExprStmt{X: x}
 }
 
-func (p *Parser) parseFile() *ast.File {
+func (p *Parser) ParseFile() *ast.Module {
 	if p.trace {
 		defer un(trace(p, "File"))
 	}
@@ -238,10 +245,11 @@ func (p *Parser) parseFile() *ast.File {
 		stmts = append(stmts, p.parseStmt())
 	}
 
-	f := &ast.File{
-		Size:  p.file.Size(),
-		Stmts: stmts,
-		Name:  p.file.Name(),
+	f := &ast.Module{
+		Size:      p.file.Size(),
+		Stmts:     stmts,
+		Specifier: p.file.Specifier(),
+		Scheme:    p.file.Scheme(),
 	}
 
 	return f

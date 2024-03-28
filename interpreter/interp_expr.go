@@ -5,6 +5,8 @@ import (
 
 	"github.com/calico32/goose/ast"
 	"github.com/calico32/goose/token"
+
+	. "github.com/calico32/goose/interpreter/lib"
 )
 
 func (i *interp) evalExpr(scope *Scope, expr ast.Expr) Value {
@@ -46,14 +48,23 @@ func (i *interp) evalExpr(scope *Scope, expr ast.Expr) Value {
 		return i.evalIfExpr(scope, expr)
 	case *ast.DoExpr:
 		return i.evalDoExpr(scope, expr)
+	case *ast.NativeExpr:
+		return i.evalNativeExpr(scope, expr)
 	case *ast.GeneratorExpr:
 		return i.evalGeneratorExpr(scope, expr)
+	case *ast.FrozenExpr:
+		// TODO: implement
+		return i.evalFrozenExpr(scope, expr)
+	case *ast.RangeExpr:
+		return i.evalRangeExpr(scope, expr)
+	case *ast.MatchExpr:
+		return i.evalMatchExpr(scope, expr)
 	default:
 		if badExpr, ok := expr.(*ast.BadExpr); ok {
-			i.throw("unexpected bad expression %#v", badExpr)
+			i.Throw("unexpected bad expression %#v", badExpr)
 		}
 
-		i.throw("unexpected expression type %T", expr)
+		i.Throw("unexpected expression type %T", expr)
 	}
 
 	return nil
@@ -77,11 +88,11 @@ func (i *interp) evalBinaryExpr(scope *Scope, expr *ast.BinaryExpr) Value {
 
 	op := GetOperator(left, expr.Op)
 	if op == nil {
-		i.throw("operator %s not defined for type %s", expr.Op, left.Type())
+		i.Throw("operator %s not defined for type %s", expr.Op, left.Type())
 	}
 
 	ret := op.Executor(&FuncContext{
-		interp: i,
+		Interp: i,
 		Scope:  scope,
 		This:   left,
 		Args:   []Value{right},
@@ -96,30 +107,38 @@ func (i *interp) evalUnaryExpr(scope *Scope, expr *ast.UnaryExpr) Value {
 
 	switch expr.Op {
 	case token.LogNot:
-		return wrap(!isTruthy(value))
+		return Wrap(!IsTruthy(value))
 	case token.Question:
 		if paren, ok := expr.X.(*ast.ParenExpr); ok {
-			fmt.Println(toDebugString(paren.X) + " = " + toString(i, scope, value))
+			fmt.Println(PrintExpr(paren.X) + " = " + ToDebugString(i, scope, value, 0))
 			return value
 		} else {
-			fmt.Println(toDebugString(expr.X) + " = " + toString(i, scope, value))
+			fmt.Println(PrintExpr(expr.X) + " = " + ToDebugString(i, scope, value, 0))
 			return value
 		}
 	case token.LogNull, token.Add, token.Sub, token.BitNot:
 		op := GetOperator(value, expr.Op)
 		if op == nil {
-			i.throw("operator %s not defined for type %s", expr.Op, value.Type())
+			i.Throw("operator %s not defined for type %s", expr.Op, value.Type())
 		}
 
 		ret := op.Executor(&FuncContext{
-			interp: i,
+			Interp: i,
 			Scope:  scope,
 			This:   value,
 		})
 
 		return ret.Value
 	default:
-		i.throw("unexpected unary operator %s", expr.Op)
+		i.Throw("unexpected unary operator %s", expr.Op)
 		return nil
 	}
+}
+
+func (i *interp) evalFrozenExpr(scope *Scope, expr *ast.FrozenExpr) Value {
+	defer un(trace(i, "frozen expr"))
+
+	e := i.evalExpr(scope, expr.X)
+	e.Freeze()
+	return e
 }

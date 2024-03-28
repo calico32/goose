@@ -16,26 +16,51 @@ repository:
       - include: '#operator-overloads'
       - include: '#generators'
       - include: '#language-constants'
-      - include: '#function-call'
       - include: '#keywords'
+      - include: '#function-call'
       - include: '#symbols'
       - include: '#numbers'
       - include: '#function-arrows'
       - include: '#operators'
       - include: '#strings'
-      - include: '#struct-properties'
+      - include: '#directives'
   comments:
     patterns:
       - name: comment.block.goose
         begin: '\/\*'
         end: '\*\/'
-      - name: comment.line.double-slash.goose
-        begin: \/\/
+        patterns:
+          - include: '#comment-content'
+      - name: comment.line.triple-slash.goose
+        begin: \/\/\/
         end: $
+        patterns:
+          - include: '#comment-content'
+          - include: '#doc-comment-content'
+      - name: comment.line.double-slash.goose
+        begin: \/\/(?!\/)
+        end: $
+        patterns:
+          - include: '#comment-content'
+  comment-content:
+    patterns:
+      - name: variable.other.goose
+        begin: '`'
+        end: '`'
+        patterns:
+          - include: '#source'
+          - match: '[A-Za-z$_][A-Za-z0-9$_]*'
+            name: source.goose
+  doc-comment-content:
+    patterns:
+      - name: constant.other.documentation.goose
+        match: '@(module|deprecated|param|returns)\b'
+        captures:
+          0: { name: constant.other.documentation.goose }
   keywords:
     patterns:
       - name: keyword.control.goose
-        match: \b(let|const|symbol|if|then|else|repeat|while|forever|times|for|in|do|break|continue|fn|end|return|memo|import|export|as|show|generator|yield|to|step|struct|init|this|super|interface|is|operator|try|catch|finally|throw|async|await|native|assert|match|when|macro|procmacro)\b
+        match: \b(let|const|symbol|if|then|else|repeat|while|forever|times|for|in|do|break|continue|fn|end|return|memo|import|export|as|show|generator|yield|to|step|struct|init|this|super|interface|is|operator|try|catch|finally|throw|async|await|native|assert|match|when|macro|procmacro|frozen)\b
   variable-declarations:
     patterns:
       - name: meta.let.expr.goose
@@ -82,31 +107,6 @@ repository:
       - name: entity.name.type.goose
         match: \b([A-Za-z$_][A-Za-z0-9$_]*)\b
       - include: '#strings'
-  struct-properties:
-    patterns:
-      - name: entity.name.struct_property.goose
-        match: (#)\s*([A-Za-z$_][A-Za-z0-9$_]*)
-        captures:
-          1: { name: keyword.operator.goose }
-      - name: entity.name.struct_property.goose
-        begin: (#\[)
-        beginCaptures:
-          1: { name: keyword.operator.goose }
-        end: (\])
-        endCaptures:
-          1: { name: keyword.operator.goose }
-        patterns:
-          - include: '#source'
-          - begin: \[
-            beginCaptures:
-              0: { name: meta.brace.square.goose }
-            end: \]
-            endCaptures:
-              0: { name: meta.brace.square.goose }
-            patterns:
-              - include: $self
-          - match: '[A-Za-z$_][A-Za-z0-9$_]*'
-            name: source.goose
   function-arrows:
     patterns:
       - name: storage.type.function.arrow.goose
@@ -132,7 +132,7 @@ repository:
       - name: keyword.operator.spread.goose
         match: \.\.\.
       - name: keyword.operator.other.goose
-        match: \?|#
+        match: '\?|::'
   struct-declarations:
     begin: \b(struct)\s+([A-Za-z$_][A-Za-z0-9$_]*)\s*(?:<(.*?)>)?\s*(\()
     beginCaptures:
@@ -219,10 +219,10 @@ repository:
         beginCaptures:
           '1':
             name: keyword.operator.rest-parameters.goose
-        end: (?=[,)/])
+        end: (?=[,)])
         patterns:
           - name: meta.parameter.function.goose
-            match: \G(:?[A-Za-z$_][A-Za-z0-9$_]*)(?:\s*(:)\s*(.+?))?(?:\s*(=)\s*(.+))?(?=[,)/])
+            match: \G(:?[A-Za-z$_][A-Za-z0-9$_]*)(?:\s*(:)\s*(.+?))?(?:\s*(=)\s*(.+))?(?=[,)])
             captures:
               1: { name: variable.parameter.function.goose }
               2: { name: punctuation.separator.type.goose }
@@ -298,11 +298,10 @@ repository:
   string-interpolations:
     patterns:
       - name: string.interpolated.goose
-        match: (\$)(#?)([A-Za-z$_][A-Za-z0-9$_]*)
+        match: (\$)([A-Za-z$_][A-Za-z0-9$_]*)
         captures:
           0: { name: variable.parameter.goose }
           1: { name: punctuation.definition.template-expression }
-          2: { name: keyword.operator.goose }
       - name: source.goose
         contentName: variable.other.goose
         begin: \$\{
@@ -355,3 +354,10 @@ repository:
     patterns:
       - include: '#string-interpolations'
       - include: '#string-escapes'
+  directives:
+    patterns:
+      - name: meta.preprocessor.directive.goose
+        match: ^\s*(#[A-Za-z$_][A-Za-z0-9$_]*)(\s+.*)?\s*$
+        captures:
+          1: { name: keyword.control.directive.goose }
+          2: { name: string.directive.goose }

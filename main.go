@@ -26,11 +26,12 @@ func Run(path string) (exitCode int, err error) {
 		return -1, err
 	}
 
-	exitCode, err = interpreter.RunFile(f, fset, false, false, os.Stdout, os.Stderr)
+	i, err := interpreter.New(f, fset, false, os.Stdin, os.Stdout, os.Stderr)
 	if err != nil {
 		return -1, err
 	}
 
+	i.Run()
 	return
 }
 
@@ -43,15 +44,16 @@ func RunCode(source string) (exitCode int, err error) {
 	}()
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "goose.RunCode", source, nil)
+	f, err := parser.ParseFile(fset, "", source, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	exitCode, err = interpreter.RunFile(f, fset, false, false, os.Stdout, os.Stderr)
+	i, err := interpreter.New(f, fset, false, os.Stdin, os.Stdout, os.Stderr)
 	if err != nil {
 		panic(err)
 	}
+	exitCode, err = i.Run()
 
 	return
 }

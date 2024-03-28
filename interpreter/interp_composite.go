@@ -1,6 +1,9 @@
 package interpreter
 
-import "github.com/calico32/goose/ast"
+import (
+	"github.com/calico32/goose/ast"
+	. "github.com/calico32/goose/interpreter/lib"
+)
 
 func (i *interp) evalCompositeLiteral(scope *Scope, expr *ast.CompositeLiteral) Value {
 	defer un(trace(i, "composite literal"))
@@ -11,7 +14,7 @@ func (i *interp) evalCompositeLiteral(scope *Scope, expr *ast.CompositeLiteral) 
 		var keyValue PropertyKey
 		switch key := field.Key.(type) {
 		case *ast.Ident:
-			keyValue = wrap(key.Name).(PropertyKey)
+			keyValue = Wrap(key.Name).(PropertyKey)
 		case *ast.StringLiteral:
 			k := i.evalString(scope, key)
 
@@ -20,11 +23,11 @@ func (i *interp) evalCompositeLiteral(scope *Scope, expr *ast.CompositeLiteral) 
 			lit := i.evalExpr(scope, key)
 
 			if int, ok := lit.(*Integer); ok {
-				keyValue = wrap(int.Value).(PropertyKey)
+				keyValue = Wrap(int.Value).(PropertyKey)
 				break
 			}
 
-			i.throw("invalid composite literal key type %s", lit.Type())
+			i.Throw("invalid composite literal key type %s", lit.Type())
 		}
 
 		val := i.evalExpr(scope, field.Value)

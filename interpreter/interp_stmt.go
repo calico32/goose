@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"github.com/calico32/goose/ast"
+	. "github.com/calico32/goose/interpreter/lib"
 )
 
 func (i *interp) runStmt(scope *Scope, stmt ast.Stmt) StmtResult {
@@ -45,19 +46,27 @@ func (i *interp) runStmt(scope *Scope, stmt ast.Stmt) StmtResult {
 		return i.runImportStmt(scope, stmt)
 	case ast.NativeStmt:
 		return i.runNativeStmt(scope, stmt)
+	case *ast.SymbolStmt:
+		return i.runSymbolStmt(scope, stmt)
 	default:
-		i.throw("unexpected statement type %T", stmt)
+		i.Throw("unexpected statement type %T", stmt)
 		return nil
 	}
 }
 
 func (i *interp) runStmts(scope *Scope, body []ast.Stmt) StmtResult {
+	var last StmtResult
 	for _, stmt := range body {
 		result := i.runStmt(scope, stmt)
 		switch result.(type) {
 		case *Return, *Break, *Continue:
 			return result
 		}
+		last = result
+	}
+
+	if val, ok := last.(*LoneValue); ok {
+		return val
 	}
 
 	return &Void{}
@@ -65,9 +74,9 @@ func (i *interp) runStmts(scope *Scope, body []ast.Stmt) StmtResult {
 
 func (i *interp) runExprStmt(scope *Scope, stmt *ast.ExprStmt) StmtResult {
 	defer un(trace(i, "expr stmt"))
-	i.evalExpr(scope, stmt.X)
+	val := i.evalExpr(scope, stmt.X)
 
-	if fn, ok := stmt.X.(*ast.FuncExpr); ok && fn.Name != nil {
+	if fn, ok := stmt.X.(*ast.FuncExpr); ok && fn.Name != nil && fn.Receiver == nil {
 		// special case: if the expression is a function expression with a name, mark it as a declaration
 		return &Decl{
 			Name:  fn.Name.Name,
@@ -75,5 +84,5 @@ func (i *interp) runExprStmt(scope *Scope, stmt *ast.ExprStmt) StmtResult {
 		}
 	}
 
-	return &Void{}
+	return &LoneValue{Value: val}
 }

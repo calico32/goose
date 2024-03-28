@@ -289,6 +289,17 @@ let v = Vec3d(x: 1, y: 2) // Vec3d(1, 2, 0)
 
 
 
+// do expressions
+let x = do
+  let y = 1
+  let z = 2
+  y + z // end block with bare expression to return a value
+end
+print(x?) // x = 3
+print(y?) // error: y is not defined
+
+
+
 // if expressions
 if true then 1 else 2
 
@@ -303,20 +314,20 @@ symbol @bar
 
 // use in composites, maps, etc.
 let comp = { @foo: 1, @bar: 2 }
-comp@foo // 1
+comp[@foo] // 1
 
 // modules
 export @bar
 export symbol @baz
 
 import "./foo.goose"
-foo@bar // the symbol @bar from module foo
-comp[foo@bar]
+foo.@bar // the symbol @bar from module foo
+comp[foo.@bar]
 
-import { @baz } from "./foo.goose"
-import { @baz as @qux } from "./foo.goose"
-comp@baz
-comp@qux
+import "./foo.goose" show { @baz }
+import "./foo.goose" show { @baz as @qux }
+comp[@baz]
+comp[@qux]
 
 
 
@@ -374,9 +385,40 @@ export const z = 2 // exports to `z`
 export { y as y2, z as z2 } // exports to `y2` and `z2`
 
 export "./foo.goose" // exports to `foo`
+// equivalent to:
+import "./foo.goose"
+export { foo }
+
 export "./foo.goose" as whatever // exports to `whatever`
 export "./foo.goose" show { add, sub }  // exports to `add` and `sub`
 export "./foo.goose" show ... // exports everything as top-level symbols
+
+import "std:io" // imports the io module via the std protocol
+import "pkg:discord" // imports the discord package via the pkg protocol
+import "discord" // no protocol & not relative, defaults to the pkg protocol
+import "discord/foo.goose" // foo.goose from the discord package
+import "file:./foo.goose" // imports the foo.goose file via the file protocol
+import "./foo.goose" // no protocol, relative: if the current module is a file, defaults to the file protocol, otherwise defaults to whatever network protocol is in use (http/https/ftp)
+import "https://example.com/foo.goose" // downloads and imports foo.goose from the internet
+import "mem:export const x = 1" as name // imports the string as a module (name required)
+name.x // 1
+
+// custom protocols
+import.defineProtocol("foo", fn(url) {
+  // ...
+  // eventually return:
+  // - a specifier with a built-in protocol
+  // - a name to use for the module
+  return {
+    name: url,
+    specifier: "mem:export const foo = \"foo\"",
+  }
+})
+
+import "foo:bar" // uses the foo protocol (url == "bar")
+bar.foo // "foo"
+
+
 
 // exceptions
 try
@@ -393,62 +435,64 @@ throw Error(message: "something went wrong", cause: otherError)
 
 
 // introspection (names subject to change)
-struct.name(Point) // "Point"
-struct.properties(Point) // ["x", "y"]
-struct.receivers(Point) // ["foo"]
-struct.receivers(Point, "foo") // <function>
-struct.operators(Point) // ["+"]
-struct.operators(Point, "+") // <function>
+import "std:reflect" show { Struct, Function, Symbol, Import, Export }
 
-fn.name(add) // "add"
-fn.parameters(add) // ["a", "b"]
-fn.restParameter(add) // null
-fn.namedParameters(add) // ["c", "d"]
-fn.parameterDefault(add, "d") // 4
-fn.restParameterDefault(add) // null
+Struct.name(Point) // "Point"
+Struct.properties(Point) // ["x", "y"]
+Struct.receivers(Point) // ["foo"]
+Struct.receivers(Point, "foo") // <function>
+Struct.operators(Point) // ["+"]
+Struct.operators(Point, "+") // <function>
 
-symbol.name(@foo) // "foo"
-symbol.id(@foo) // 0x12345678 (some unique id)
+Function.name(add) // "add"
+Function.parameters(add) // ["a", "b"]
+Function.restParameter(add) // null
+Function.namedParameters(add) // ["c", "d"]
+Function.parameterDefault(add, "d") // 4
+Function.restParameterDefault(add) // null
+Function.isMemoized(add) // false
+Function.hasMemoized(add, 1, 2) // false
+
+Symbol.name(@foo) // "foo"
+Symbol.id(@foo) // 0x12345678 (some unique id)
 
 // modules
-import.name("./foo.goose") // "foo" (the algorithm used to name modules)
-import.resolve("./foo.goose") // "/absolute/path/to/foo.goose"
-import.resolve("std:foo") // "<std/foo.goose>" or similar (stdlib has no absolute path)
-import.self.name // "bar" (the name of the current module)
-import.self.path // "/absolute/path/to/bar.goose"
+Import.name("./foo.goose") // "foo" (the algorithm used to name modules)
+Import.resolve("./foo.goose") // "/absolute/path/to/foo.goose"
+Import.resolve("std:foo") // "<std/foo.goose>" or similar (stdlib has no absolute path)
+Import.self.name // "bar" (the name of the current module)
+Import.self.path // "/absolute/path/to/bar.goose"
 
 export const x = 5
 const y = 5
-export.name(x) // "x"
-export.name(y) // null
-export.name(5) // throws an error (literals can't be exported)
-export.name("foo") // throws an error
-export.list() // ["x"]
+Export.name(x) // "x"
+Export.name(y) // null
+Export.name(5) // throws an error (literals can't be exported)
+Export.name("foo") // throws an error
+Export.list() // ["x"]
 
 
 
 
 
 // fleshed out standard library
-import "std" show {
-  "math",     // -> `math.{symbol}`: math constants, functions, etc
-  "io",       // io operations
-  "time",     // time and date util
-  "http",     // http client
-  "json",     // json parser and serializer
-  "hash",     // hash functions
-  "crypto",   // crypto functions (pbkdf2, secure random, etc)
-  "random",   // pseudo random numbers and data
-  "platform", // language, runtime, and platform information (os, arch, etc)
-  "canvas" show {  // 2d drawing canvas
-    Canvas,
-    rect,
-    circle,
-    ellipse,
-    line,
-    text,
-    image,
-  }
+import "std:math"      // -> `math.{symbol}`: math constants, functions, etc
+import "std:io"        // io operations
+import "std:time"      // time and date util
+import "std:http"      // http client
+import "std:json"      // json parser and serializer
+import "std:hash"      // hash functions
+import "std:crypto"    // crypto functions (pbkdf2, secure random, etc)
+import "std:random"    // pseudo random numbers and data
+import "std:platform"  // language, runtime, and platform information (os, arch, etc)
+import "std:canvas" show {  // 2d drawing canvas
+  Canvas,
+  rect,
+  circle,
+  ellipse,
+  line,
+  text,
+  image,
 }
 
 math.PI // π
@@ -506,8 +550,8 @@ platform.version // language version, semver string "1.0.0+whatever"
 platform.runtime // implementation language (go or goose)
 
 
-const c = Canvas(100, 100) // create canvas
-c.show() // platform-specific windowing (x11 on linux, html5 canvas on web, etc)
+const c = Canvas(width: 100, height: 100) // create canvas
+c.display() // platform-specific windowing (x11 on linux, html5 canvas on web, etc)
 
 c.width // 100
 c.height // 100
@@ -584,13 +628,14 @@ async operator Point +(a, b)
   // ...
 end
 
+let r = p await+ q
 let r = await (p + q)
 
 // pipeline operator
 
 printf("hello %s\n", random.choice((await (await http.get("https://people.example.com")).json()).people.map(fn(p) -> p.name)))
 
-// or
+// becomes
 
 await http.get("https://people.example.com")
   -> await _.json()
@@ -603,20 +648,20 @@ await http.get("https://people.example.com")
 // pattern matching
 let y = 5
 let m = match x
-  when 1 -> 10      // x is 1 -> 10
-  when 2 -> 20      // x is 2 -> 20
-  when 3 -> do      // x is 3 -> execute block
+  1 -> 10      // x is 1 -> 10
+  2 -> 20      // x is 2 -> 20
+  3 -> do      // x is 3 -> execute block
     return x * 10     // -> 30
   end
-  when [1] -> x[0]  // x is an array with 1 element, the number 1         -> 1
-  when [1, y] -> y  // x is an array of length 2, and is [1, 5]           -> 5
-  when [1, $y] -> y  // x is an array of length 2, the first element is 1 -> the second element
-  when [$x, $y, $z] -> x + y + y + z // x is an array of length 3, bind   -> x[0] + x[1] + x[1] + x[2]
-  when int($x) -> x // x is an integer                                    -> x
-  when float($x) -> x // x is a float                                     -> x
-  when { foo: $y } -> y // x has a property foo                           -> x.foo
-  when Array<int>($y) -> 5 // x is an array of integers
-  when arbitrary.Type($y) -> 5 // x is an instance of arbitrary.Type
+  [1] -> x[0]  // x is an array with 1 element, the number 1         -> 1
+  [1, y] -> y  // x is an array of length 2, and is [1, 5]           -> 5
+  [1, $y] -> y  // x is an array of length 2, the first element is 1 -> the second element
+  [$x, $y, $z] -> x + y + y + z // x is an array of length 3, bind   -> x[0] + x[1] + x[1] + x[2]
+  int($x) -> x // x is an integer                                    -> x
+  float($x) -> x // x is a float                                     -> x
+  { foo: $y } -> y // x has a property foo                           -> x.foo
+  Array<int>($y) -> 5 // x is an array of integers
+  arbitrary.Type($y) -> 5 // x is an instance of arbitrary.Type
   else -> 0 // match anything
 end
 

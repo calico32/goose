@@ -32,34 +32,34 @@ func TestModuleName(t *testing.T) {
 		"std/":   "",
 		"std/io": "io",
 		// reserved
-		"_module": "",
-		"_":       "",
+		"index": "",
+		"_":     "",
 
 		// relative imports
-		"./discord":                            "discord",
-		"./discord.commands":                   "discordcommands", // periods removed from module name
-		"./discord.goose":                      "discord",         // if a file ends in .goose, it is removed from the module name
-		"./discord.commands.goose":             "discordcommands",
-		"./discord/":                           "",
-		"./discord/_module.goose":              "discord", // _module.goose is treated as its parent directory
-		"./discord/commands/_module.goose":     "commands",
-		"./discord/commands/abc.goose":         "abc",
-		"./discord/commands/abc.foo.goose":     "abcfoo",
-		"./discord/commands/abc/_module.goose": "abc",
-		"../discord.goose":                     "discord",
-		"../discord/commands.goose":            "commands",
-		"/path/to/discord.goose":               "discord",
-		"/path/to/discord/commands.goose":      "commands",
-		".":                                    "", // no module name for current directory
-		"..":                                   "", // no module name
-		"/":                                    "", // no module name
-		"./.././../.././//discord.goose":       "discord",
-		"./.././discord/../discord.goose":      "discord",
-		"////discord.goose":                    "discord",
-		"./discord/123.goose":                  "",
-		"./discord/123":                        "",
-		"./discord/123/a.goose":                "a",
-		"./discord/commands1234.goose":         "commands1234",
+		"./discord":                          "discord",
+		"./discord.commands":                 "discordcommands", // periods removed from module name
+		"./discord.goose":                    "discord",         // if a file ends in .goose, it is removed from the module name
+		"./discord.commands.goose":           "discordcommands",
+		"./discord/":                         "",
+		"./discord/index.goose":              "discord", // index.goose is treated as its parent directory
+		"./discord/commands/index.goose":     "commands",
+		"./discord/commands/abc.goose":       "abc",
+		"./discord/commands/abc.foo.goose":   "abcfoo",
+		"./discord/commands/abc/index.goose": "abc",
+		"../discord.goose":                   "discord",
+		"../discord/commands.goose":          "commands",
+		"/path/to/discord.goose":             "discord",
+		"/path/to/discord/commands.goose":    "commands",
+		".":                                  "", // no module name for current directory
+		"..":                                 "", // no module name
+		"/":                                  "", // no module name
+		"./.././../.././//discord.goose":     "discord",
+		"./.././discord/../discord.goose":    "discord",
+		"////discord.goose":                  "discord",
+		"./discord/123.goose":                "",
+		"./discord/123":                      "",
+		"./discord/123/a.goose":              "a",
+		"./discord/commands1234.goose":       "commands1234",
 	}
 
 	// expect empty string for all keywords
@@ -109,15 +109,15 @@ func TestModulePath(t *testing.T) {
 		"std/":   {},
 		"std/io": {root + "/std/io"}, // top level std modules do not get resolved to a .goose file
 		// reserved
-		"_module": {},
-		"_":       {},
+		"index": {},
+		"_":     {},
 
 		// relative imports
 		"./discord":                       {cwd + "/discord", cwd + "/discord.goose"},
 		"./discord.commands":              {cwd + "/discord.commands", cwd + "/discord.commands.goose"},
 		"./discord.goose":                 {cwd + "/discord.goose"},
 		"./discord/":                      {},
-		"./discord/_module":               {cwd + "/discord/_module", cwd + "/discord/_module.goose"},
+		"./discord/index":                 {cwd + "/discord/index", cwd + "/discord/index.goose"},
 		"./discord/commands":              {cwd + "/discord/commands", cwd + "/discord/commands.goose"},
 		"./discord/commands/":             {},
 		"./discord/commands/abc":          {cwd + "/discord/commands/abc", cwd + "/discord/commands/abc.goose"},

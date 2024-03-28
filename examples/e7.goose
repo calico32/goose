@@ -14,7 +14,7 @@ const add2 = fn(x, y) -> x + y
 fn diff(x, y) -> if x > y then x - y else y - x
 
 
-// do blocks
+// do expressions
 let x = 1
 do
   let x = 2
@@ -24,3 +24,12 @@ do
 end
 print(x?) // x = 1
 print(y?) // error: y is not defined
+
+
+const result = do
+  const x = 1
+  const y = 2
+  x + y
+end
+
+print(result?) // 3

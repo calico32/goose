@@ -38,7 +38,7 @@ func (p *Parser) parseFuncExpr(asyncPos token.Pos) *ast.FuncExpr {
 	if p.tok == token.Arrow {
 		expr.Arrow = p.pos
 		p.next()
-		expr.ArrowExpr = p.parseExpr()
+		expr.ArrowExpr = p.ParseExpr()
 	} else {
 		for p.tok != token.EOF && p.tok != token.End {
 			expr.Body = append(expr.Body, p.parseStmt())
@@ -66,7 +66,7 @@ func (p *Parser) parseParameters() (params *ast.FuncParamList) {
 		f.Ident = p.parseIdent()
 		if p.tok == token.Assign {
 			p.next()
-			f.Value = p.parseExpr()
+			f.Value = p.ParseExpr()
 		}
 
 		fields = append(fields, f)
@@ -89,7 +89,7 @@ func (p *Parser) parseCall(fun ast.Expr) *ast.CallExpr {
 	lparen := p.expect(token.LParen)
 	var list []ast.Expr
 	for p.tok != token.RParen && p.tok != token.EOF {
-		list = append(list, p.parseExpr())
+		list = append(list, p.ParseExpr())
 		if p.tok != token.RParen {
 			p.expect(token.Comma)
 		}
@@ -111,7 +111,7 @@ func (p *Parser) parseReturnStmt() *ast.ReturnStmt {
 		// return null
 		return &ast.ReturnStmt{Return: pos}
 	} else {
-		x = p.parseExpr()
+		x = p.ParseExpr()
 		return &ast.ReturnStmt{Return: pos, Result: x}
 	}
 }

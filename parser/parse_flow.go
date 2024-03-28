@@ -11,18 +11,18 @@ func (p *Parser) parseIfExprStmt(allowExpr bool) ast.Node {
 	}
 
 	pos := p.expect(token.If)
-	cond := p.parseExpr()
+	cond := p.ParseExpr()
 
 	if p.tok == token.Then {
 		if !allowExpr {
 			p.errorExpected(p.pos, "statement")
 		}
 		expr := &ast.IfExpr{If: pos, Cond: cond, ThenPos: p.expect(token.Then)}
-		expr.Then = p.parseExpr()
+		expr.Then = p.ParseExpr()
 		if p.tok == token.Else {
 			expr.ElsePos = p.pos
 			p.next()
-			expr.Else = p.parseExpr()
+			expr.Else = p.ParseExpr()
 		}
 		if !allowExpr {
 			return &ast.BadStmt{From: expr.If, To: expr.Else.End()}
@@ -129,7 +129,7 @@ func (p *Parser) parseThrowExpr() ast.Expr {
 	}
 
 	pos := p.expect(token.Throw)
-	expr := p.parseExpr()
+	expr := p.ParseExpr()
 
 	return &ast.ThrowExpr{Throw: pos, X: expr}
 }

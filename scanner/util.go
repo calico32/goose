@@ -109,7 +109,7 @@ func digitVal(ch rune) int {
 }
 
 func hexToUint(hex string) (uint64, error) {
-	return strconv.ParseUint(hex, 16, 64)
+	return strconv.ParseUint(hex, 16, 32)
 }
 
 func processStringEscapes(s string) string {

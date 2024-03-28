@@ -22,6 +22,9 @@ const (
 	StringInterpExprStart
 	StringInterpExprEnd
 	StringEnd
+	Null
+	True
+	False
 	LiteralEnd
 
 	OperatorStart
@@ -82,13 +85,11 @@ const (
 	Ellipsis
 	HashLBracket
 	Bind
+	MatchBind
 	EOL
 	OperatorEnd
 
 	KeywordStart
-	Null
-	True
-	False
 	Let
 	Const
 	Symbol
@@ -127,6 +128,10 @@ const (
 	Async
 	Await
 	Native
+	Match
+	When
+	Frozen
+	Is
 	KeywordEnd
 
 	None
@@ -140,12 +145,15 @@ var tokens = [...]string{
 	Ident:                 "<IDENT>",
 	Int:                   "<INT>",
 	Float:                 "<FLOAT>",
-	StringStart:           "<S_START>",
-	StringMid:             "<S_MID>",
-	StringInterpIdent:     "<S_IDENT>",
-	StringInterpExprStart: "<S_EXPRS>",
-	StringInterpExprEnd:   "<S_EXPRE>",
-	StringEnd:             "<S_END>",
+	StringStart:           "<STRING_START>",
+	StringMid:             "<STRING_MID>",
+	StringInterpIdent:     "<STRING_IDENT>",
+	StringInterpExprStart: "<STRING_EXPR_START>",
+	StringInterpExprEnd:   "<STRING_EXPR_END>",
+	StringEnd:             "<STRING_END>",
+	Null:                  "null",
+	True:                  "true",
+	False:                 "false",
 
 	Assign:        "=",
 	Add:           "+",
@@ -202,11 +210,9 @@ var tokens = [...]string{
 	Ellipsis:     "...",
 	HashLBracket: "#[",
 	Bind:         "::",
+	MatchBind:    "$",
 	EOL:          "<EOL>",
 
-	Null:      "null",
-	True:      "true",
-	False:     "false",
 	Let:       "let",
 	Const:     "const",
 	Symbol:    "symbol",
@@ -245,6 +251,10 @@ var tokens = [...]string{
 	Async:     "async",
 	Await:     "await",
 	Native:    "native",
+	Match:     "match",
+	When:      "when",
+	Frozen:    "frozen",
+	Is:        "is",
 }
 
 func (tok Token) String() string {
@@ -268,20 +278,22 @@ func (tok Token) Precedence() int {
 	switch tok {
 	case Arrow:
 		return 1
-	case LogNull:
+	case Is:
 		return 2
-	case LogOr:
+	case LogNull:
 		return 3
-	case LogAnd:
+	case LogOr:
 		return 4
-	case Eq, Neq, Lt, Gt, Lte, Gte:
+	case LogAnd:
 		return 5
-	case Add, Sub:
+	case Eq, Neq, Lt, Gt, Lte, Gte:
 		return 6
-	case Mul, Quo, Rem:
+	case Add, Sub:
 		return 7
-	case Pow:
+	case Mul, Quo, Rem:
 		return 8
+	case Pow:
+		return 9
 	}
 	return PrecedenceLowest
 }

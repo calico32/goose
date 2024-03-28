@@ -4,17 +4,15 @@ let calls = 0
 memo fn fib(n)
   calls++
 
-  if n == 0 || n == 1
+  if n <= 1
     return n
   else
     return fib(n - 1) + fib(n - 2)
   end
 end
 
-const max = 50
-let n = 1
 
-repeat while n < max
+for n in 1 to 101
   let suffix = "th"
   if n % 100 <= 10 || n % 100 >= 20
     if n % 10 == 1
@@ -25,8 +23,7 @@ repeat while n < max
       suffix = "rd"
     end
   end
-  print("the $n$suffix fibonacci number is ${fib(n)}")
-  n++
+  println("the ${n}$suffix fibonacci number is ${fib(n)}") // $ is valid in identifiers, so the n needs to be wrapped in {}
 end
 
-print("calls: $calls")
+println("calls: $calls")

@@ -1,13 +1,16 @@
 package interpreter
 
-import "github.com/calico32/goose/ast"
+import (
+	"github.com/calico32/goose/ast"
+	. "github.com/calico32/goose/interpreter/lib"
+)
 
 func (i *interp) evalGeneratorExpr(scope *Scope, expr *ast.GeneratorExpr) Value {
 	defer un(trace(i, "generator expr"))
 
 	if expr.Name != nil && expr.Receiver == nil {
 		if value := scope.Get(expr.Name.Name); value != nil {
-			i.throw("duplicate generator %s", expr.Name.Name)
+			i.Throw("duplicate generator %s", expr.Name.Name)
 		}
 	}
 
@@ -15,7 +18,7 @@ func (i *interp) evalGeneratorExpr(scope *Scope, expr *ast.GeneratorExpr) Value 
 	paramNames := map[string]bool{}
 	for _, param := range expr.Params.List {
 		if paramNames[param.Ident.Name] {
-			i.throw("duplicate parameter %s", param.Ident.Name)
+			i.Throw("duplicate parameter %s", param.Ident.Name)
 		}
 		paramNames[param.Ident.Name] = true
 	}
@@ -93,7 +96,7 @@ func (i *interp) evalGeneratorExpr(scope *Scope, expr *ast.GeneratorExpr) Value 
 
 		go executor(ctx, channel)
 
-		return &Return{generator}
+		return NewReturn(generator)
 	}
 
 	factory := &Func{Executor: factoryFunc}
@@ -104,24 +107,24 @@ func (i *interp) evalGeneratorExpr(scope *Scope, expr *ast.GeneratorExpr) Value 
 			// TODO: limit to current module
 			constructor := scope.Get(expr.Receiver.Name)
 			if constructor == nil {
-				i.throw("unknown type %s", expr.Receiver.Name)
+				i.Throw("unknown type %s", expr.Receiver.Name)
 			}
 
 			if val, ok := constructor.Value.(*Func); !ok || val.NewableProto == nil {
-				i.throw("%s is not a type", expr.Receiver.Name)
+				i.Throw("%s is not a type", expr.Receiver.Name)
 			}
 
 			proto := constructor.Value.(*Func).NewableProto
 
-			if proto.Properties[PropertyKeyString] == nil {
-				proto.Properties[PropertyKeyString] = make(map[string]Value)
+			if proto.Properties[PKString] == nil {
+				proto.Properties[PKString] = make(map[string]Value)
 			}
 
-			if _, ok := proto.Properties[PropertyKeyString][expr.Name.Name]; ok {
-				i.throw("duplicate receiver function %s", expr.Name.Name)
+			if _, ok := proto.Properties[PKString][expr.Name.Name]; ok {
+				i.Throw("duplicate receiver function %s", expr.Name.Name)
 			}
 
-			proto.Properties[PropertyKeyString][expr.Name.Name] = factory
+			proto.Properties[PKString][expr.Name.Name] = factory
 		} else {
 			scope.Set(expr.Name.Name, &Variable{
 				Constant: true, // functions are constants

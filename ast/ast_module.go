@@ -196,7 +196,7 @@ func ModuleName(specifier string) (name string, err error) {
 	parts := strings.Split(specifier, "/")
 	if !isRelative {
 		name = parts[len(parts)-1]
-		if name == "_module.goose" {
+		if name == "index.goose" {
 			if len(parts) == 1 {
 				return "", errors.New("invalid module name")
 			}
@@ -209,7 +209,7 @@ func ModuleName(specifier string) (name string, err error) {
 
 		name = parts[len(parts)-1]
 
-		if name == "_module.goose" {
+		if name == "index.goose" {
 			if len(parts) == 2 {
 				return "", errors.New("invalid module name")
 			}
@@ -242,7 +242,7 @@ func ModuleName(specifier string) (name string, err error) {
 		return "", errors.New("invalid module name")
 	}
 
-	if cleanName == "" || cleanName == "_" || cleanName == "_module" {
+	if cleanName == "" || cleanName == "_" || cleanName == "index" {
 		return "", errors.New("invalid module name")
 	}
 

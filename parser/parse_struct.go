@@ -34,7 +34,7 @@ func (p *Parser) parseStructFields() (params *ast.StructFieldList) {
 		f := &ast.StructField{Ident: ident}
 		if p.tok == token.Assign {
 			p.next()
-			f.Value = p.parseExpr()
+			f.Value = p.ParseExpr()
 		}
 
 		fields = append(fields, f)
@@ -73,7 +73,7 @@ func (p *Parser) parseBracketPropertyExpr() *ast.BracketPropertyExpr {
 
 	prop := &ast.BracketPropertyExpr{}
 	prop.HashLBracket = p.expect(token.HashLBracket)
-	prop.X = p.parseExpr()
+	prop.X = p.ParseExpr()
 	prop.RBracket = p.expect(token.RBracket)
 
 	return prop
@@ -109,7 +109,7 @@ func (p *Parser) parseOperatorStmt() *ast.OperatorStmt {
 	if p.tok == token.Arrow {
 		stmt.Arrow = p.pos
 		p.next()
-		stmt.ArrowExpr = p.parseExpr()
+		stmt.ArrowExpr = p.ParseExpr()
 	} else {
 		for p.tok != token.EOF && p.tok != token.End {
 			stmt.Body = append(stmt.Body, p.parseStmt())

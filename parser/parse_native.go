@@ -92,3 +92,17 @@ func (p *Parser) parseNativeStmt() ast.NativeStmt {
 		return nil
 	}
 }
+
+func (p *Parser) parseNativeExpr() ast.Expr {
+	native := p.expect(token.Native)
+	id := p.parseString()
+	if len(id.Parts) != 0 {
+		// string has interpolation, invalid
+		p.errorExpected(id.Pos(), "native expression id")
+	}
+
+	return &ast.NativeExpr{
+		Native: native,
+		Id:     id.StringStart.Content,
+	}
+}

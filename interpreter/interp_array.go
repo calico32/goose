@@ -1,18 +1,38 @@
 package interpreter
 
-import "github.com/calico32/goose/ast"
+import (
+	"math/big"
+	"strings"
+
+	"github.com/calico32/goose/ast"
+	"github.com/calico32/goose/token"
+
+	. "github.com/calico32/goose/interpreter/lib"
+)
 
 func (i *interp) evalArrayLiteral(scope *Scope, expr *ast.ArrayLiteral) Value {
 	defer un(trace(i, "array lit"))
 
 	var values []Value
-	for _, value := range expr.List {
-		val := i.evalExpr(scope, value)
+	for _, ex := range expr.List {
+		if ex, ok := ex.(*ast.UnaryExpr); ok {
+			if ex.Op == token.Ellipsis {
+				spread := i.evalExpr(scope, ex.X)
+				switch v := spread.(type) {
+				case *Array:
+					values = append(values, v.Elements...)
+				default:
+					i.Throw("cannot spread non-array type %s", v.Type())
+				}
+				continue
+			}
+		}
+		val := i.evalExpr(scope, ex)
 
 		values = append(values, val)
 	}
 
-	return wrap(values)
+	return Wrap(values)
 }
 
 func (i *interp) evalArrayInitializer(scope *Scope, expr *ast.ArrayInitializer) Value {
@@ -23,27 +43,27 @@ func (i *interp) evalArrayInitializer(scope *Scope, expr *ast.ArrayInitializer) 
 	count := i.evalExpr(scope, expr.Count)
 
 	if _, ok := count.(*Integer); !ok {
-		i.throw("array initializer count must be an integer")
+		i.Throw("array initializer count must be an integer")
 	}
 
 	countVal := count.(*Integer).Value
 
 	if lit, ok := expr.Value.(*ast.Literal); ok {
-		// don't bother evaluating the value if it's a literal
+		// don't bother evaluating the expressiong every time, just use the literal value
 		value := i.evalLiteral(scope, lit)
 
-		for i := int64(0); i < countVal; i++ {
+		for i := big.NewInt(0); i.Cmp(countVal) == -1; i.Add(i, big.NewInt(1)) {
 			values = append(values, value)
 		}
 
-		return wrap(values)
+		return Wrap(values)
 	}
 
-	for idx := int64(0); idx < countVal; idx++ {
+	for idx := big.NewInt(0); idx.Cmp(countVal) == -1; idx.Add(idx, big.NewInt(1)) {
 		newScope := scope.Fork(ScopeOwnerArrayInit)
 		newScope.Set("_", &Variable{
 			Constant: true,
-			Value:    wrap(idx),
+			Value:    Wrap(idx),
 		})
 
 		val := i.evalExpr(newScope, expr.Value)
@@ -51,19 +71,27 @@ func (i *interp) evalArrayInitializer(scope *Scope, expr *ast.ArrayInitializer) 
 		values = append(values, val)
 	}
 
-	return wrap(values)
+	return Wrap(values)
 }
 
+// TODO: optimize for strings
 func (i *interp) evalSliceExpr(scope *Scope, expr *ast.SliceExpr) Value {
 	defer un(trace(i, "slice expression"))
 
-	left := i.evalExpr(scope, expr.X)
+	x := i.evalExpr(scope, expr.X)
 
-	if _, ok := left.(*Array); !ok {
-		i.throw("cannot slice non-array type %s", left.Type())
+	var values []Value
+	if a, ok := x.(*Array); ok {
+		values = a.Elements
+	} else if a, ok := x.(*String); ok {
+		values = []Value{}
+		for _, r := range a.Value {
+			values = append(values, Wrap(string(r)))
+		}
+	} else {
+		i.Throw("cannot slice non-array and non-string type %s", x.Type())
 	}
 
-	values := left.(*Array).Elements
 	start := int64(0)
 	end := int64(len(values))
 
@@ -71,7 +99,7 @@ func (i *interp) evalSliceExpr(scope *Scope, expr *ast.SliceExpr) Value {
 		begin := i.evalExpr(scope, expr.Low)
 
 		if _, ok := begin.(Numeric); !ok {
-			i.throw("expected numeric type for slice start index, got %s", begin.Type())
+			i.Throw("expected numeric type for slice start index, got %s", begin.Type())
 		}
 
 		idx := begin.(Numeric).Int64()
@@ -81,7 +109,7 @@ func (i *interp) evalSliceExpr(scope *Scope, expr *ast.SliceExpr) Value {
 				idx = 0
 			}
 			if idx >= int64(len(values)) {
-				i.throw("index %d out of bounds", begin.(Numeric).Int64())
+				i.Throw("index %d out of bounds", begin.(Numeric).Int64())
 			}
 		}
 
@@ -92,7 +120,7 @@ func (i *interp) evalSliceExpr(scope *Scope, expr *ast.SliceExpr) Value {
 		endVal := i.evalExpr(scope, expr.High)
 
 		if _, ok := endVal.(Numeric); !ok {
-			i.throw("expected numeric type for slice end index, got %s", endVal.Type())
+			i.Throw("expected numeric type for slice end index, got %s", endVal.Type())
 		}
 
 		idx := endVal.(Numeric).Int64()
@@ -102,14 +130,14 @@ func (i *interp) evalSliceExpr(scope *Scope, expr *ast.SliceExpr) Value {
 				idx = 0
 			}
 			if idx >= int64(len(values)) {
-				i.throw("index %d out of bounds", endVal)
+				i.Throw("index %d out of bounds", endVal)
 			}
 		}
 		end = idx
 	}
 
 	if end < start {
-		i.throw("computed end index %d is less than computed start index %d", end, start)
+		i.Throw("computed end index %d is less than computed start index %d", end, start)
 	}
 
 	if start < 0 {
@@ -120,5 +148,15 @@ func (i *interp) evalSliceExpr(scope *Scope, expr *ast.SliceExpr) Value {
 		end = int64(len(values))
 	}
 
-	return wrap(values[start:end])
+	result := values[start:end]
+
+	if _, ok := x.(*Array); ok {
+		return Wrap(result)
+	} else {
+		var out strings.Builder
+		for _, v := range result {
+			out.WriteString(v.(*String).Value)
+		}
+		return Wrap(out.String())
+	}
 }

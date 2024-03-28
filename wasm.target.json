@@ -1,4 +1,0 @@
-{
-  "inherits": ["wasm"],
-  "ldflags": ["--initial-memory=524288", "--max-memory=3145728", "-zstack-size=262144"]
-}

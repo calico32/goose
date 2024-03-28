@@ -10,4 +10,4 @@ end
 
 const multiplied = mul(21, 19)
 
-print("the result is $multiplied") // parens optional if single name
+print("the result is $multiplied") // braces optional if single name

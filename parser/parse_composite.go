@@ -40,7 +40,7 @@ func (p *Parser) parseCompositeField() (s *ast.CompositeField) {
 
 	if p.tok == token.LBracket {
 		p.next()
-		key = p.parseExpr()
+		key = p.ParseExpr()
 		p.expect(token.RBracket)
 	} else if p.tok == token.StringStart {
 		key = p.parseString()
@@ -62,7 +62,7 @@ func (p *Parser) parseCompositeField() (s *ast.CompositeField) {
 	}
 
 	p.expect(token.Colon)
-	value = p.parseExpr()
+	value = p.ParseExpr()
 
 	return &ast.CompositeField{
 		Key:   key,

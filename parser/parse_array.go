@@ -19,10 +19,10 @@ func (p *Parser) parseArrayLitOrInitializer() (s ast.Expr) {
 		if isInitializer {
 			// already read [value;
 			// read count (bracket coming next)
-			initializer.Count = p.parseExpr()
+			initializer.Count = p.ParseExpr()
 			break
 		} else {
-			list = append(list, p.parseExpr())
+			list = append(list, p.ParseExpr())
 		}
 
 		if p.tok != token.RBracket {

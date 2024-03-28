@@ -7,3 +7,9 @@ test/**
 compiler
 lsp
 llvm
+.idea
+
+_compiler
+_llvm
+
+tmp

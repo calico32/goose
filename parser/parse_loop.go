@@ -18,7 +18,7 @@ func (p *Parser) parseForStmt() *ast.ForStmt {
 	}
 	ident := p.parseIdent()
 	p.expect(token.In)
-	expr := p.parseExpr()
+	expr := p.ParseExpr()
 
 	var body []ast.Stmt
 	for p.tok != token.End && p.tok != token.EOF {
@@ -45,7 +45,7 @@ func (p *Parser) parseRepeatStmt() ast.Stmt {
 	switch p.tok {
 	case token.While:
 		p.next()
-		cond := p.parseExpr()
+		cond := p.ParseExpr()
 		var body []ast.Stmt
 		for p.tok != token.End && p.tok != token.EOF {
 			body = append(body, p.parseStmt())
@@ -61,7 +61,7 @@ func (p *Parser) parseRepeatStmt() ast.Stmt {
 		p.expect(token.End)
 		return &ast.RepeatForeverStmt{Repeat: pos, Body: body, BlockEnd: p.pos}
 	default:
-		count := p.parseExpr()
+		count := p.ParseExpr()
 		p.expect(token.Times)
 		var body []ast.Stmt
 		for p.tok != token.End && p.tok != token.EOF {

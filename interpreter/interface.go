@@ -7,18 +7,21 @@ import (
 	"path/filepath"
 
 	"github.com/calico32/goose/ast"
+	. "github.com/calico32/goose/interpreter/lib"
 	"github.com/calico32/goose/token"
 )
 
-func RunFile(file *ast.File, fset *token.FileSet, trace bool, doPanic bool, stdout io.Writer, stderr io.Writer) (exitCode int, err error) {
-	i := &interp{
-		modules:   make(map[string]*Module),
-		global:    NewGlobalScope(builtins),
-		trace:     trace,
-		fset:      fset,
-		stdout:    stdout,
-		stderr:    stderr,
-		gooseRoot: os.Getenv("GOOSEROOT"),
+func New(file *ast.Module, fset *token.FileSet, trace bool, stdin io.Reader, stdout io.Writer, stderr io.Writer) (i *interp, err error) {
+	i = &interp{
+		modules:        make(map[string]*Module),
+		global:         NewGlobalScope(GlobalConstants),
+		trace:          trace,
+		fset:           fset,
+		stdin:          stdin,
+		stdout:         stdout,
+		stderr:         stderr,
+		gooseRoot:      os.Getenv("GOOSEROOT"),
+		executionStack: make([]*Module, 0, 10),
 	}
 
 	if i.gooseRoot == "" {
@@ -37,31 +40,32 @@ func RunFile(file *ast.File, fset *token.FileSet, trace bool, doPanic bool, stdo
 
 	err = CreateGooseRoot(i.gooseRoot)
 	if err != nil {
-		return 1, err
+		return
 	}
 
 	module := &Module{
-		File:    file,
+		Module:  file,
 		Scope:   i.global.Fork(ScopeOwnerModule),
 		Exports: make(map[string]*Variable),
 	}
 
-	module.Scope.module = module
-	i.modules[file.Name] = module
+	module.Scope.SetModule(module)
+	i.modules[file.Specifier] = module
+	i.executionStack = append(i.executionStack, module)
 
-	return i.run(doPanic)
+	return
 }
 
 func EvalExpr(expr ast.Expr, scope *Scope) (ret Value, err error) {
 	i := &interp{
 		fset:      token.NewFileSet(),
 		modules:   make(map[string]*Module),
-		global:    NewGlobalScope(builtins),
+		global:    NewGlobalScope(GlobalConstants),
 		gooseRoot: os.Getenv("GOOSEROOT"),
 	}
 
 	module := &Module{
-		File: &ast.File{
+		Module: &ast.Module{
 			Stmts: []ast.Stmt{
 				&ast.ExprStmt{
 					X: expr,
@@ -76,7 +80,7 @@ func EvalExpr(expr ast.Expr, scope *Scope) (ret Value, err error) {
 		module.Scope = i.global.Fork(ScopeOwnerModule)
 	}
 
-	module.Scope.module = module
+	module.Scope.SetModule(module)
 
 	i.modules["<eval>"] = module
 	i.executionStack = append(i.executionStack, module)

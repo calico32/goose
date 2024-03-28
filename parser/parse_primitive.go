@@ -41,7 +41,7 @@ loop:
 			p.next()
 			interpExpr := &ast.StringLiteralInterpExpr{
 				InterpPos: pos,
-				Expr:      p.parseExpr(),
+				Expr:      p.ParseExpr(),
 			}
 			p.expect(token.StringInterpExprEnd)
 			parts = append(parts, interpExpr)

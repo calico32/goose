@@ -1,14 +1,16 @@
 package interpreter
 
 import (
+	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/calico32/goose/ast"
+	. "github.com/calico32/goose/interpreter/lib"
 	"github.com/calico32/goose/token"
 )
 
-func (i *interp) evalLiteral(scope *Scope, expr *ast.Literal) Value {
+func (i *interp) evalLiteral(_ *Scope, expr *ast.Literal) Value {
 	switch expr.Kind {
 	case token.Int:
 		strVal := strings.ReplaceAll(expr.Value, "_", "")
@@ -24,20 +26,21 @@ func (i *interp) evalLiteral(scope *Scope, expr *ast.Literal) Value {
 			strVal = strVal[2:]
 			base = 2
 		}
-		val, err := strconv.ParseInt(strVal, base, 64)
-		if err != nil {
-			i.throw(err.Error())
+		val := new(big.Int)
+		val, ok := val.SetString(strVal, base)
+		if !ok {
+			i.Throw("failed to parse integer")
 		}
 
-		return wrap(val)
+		return Wrap(val)
 
 	case token.Float:
 		val, err := strconv.ParseFloat(expr.Value, 64)
 		if err != nil {
-			i.throw(err.Error())
+			i.Throw(err.Error())
 		}
 
-		return wrap(val)
+		return Wrap(val)
 
 	case token.Null:
 		return NullValue
@@ -49,7 +52,7 @@ func (i *interp) evalLiteral(scope *Scope, expr *ast.Literal) Value {
 		return FalseValue
 
 	default:
-		i.throw("unexpected literal kind %s", expr.Kind)
+		i.Throw("unexpected literal kind %s", expr.Kind)
 		return nil
 	}
 }
@@ -60,10 +63,10 @@ func (i *interp) evalIdent(scope *Scope, expr *ast.Ident) Value {
 	if expr.Name[0] == '#' {
 		x := scope.Get("this")
 		if x == nil {
-			i.throw("invalid property access: 'this' is not defined")
+			i.Throw("invalid property access: 'this' is not defined")
 		}
 		// property
-		prop := GetProperty(x.Value, &String{expr.Name[1:]})
+		prop := GetProperty(x.Value, NewString(expr.Name[1:]))
 		if fn, ok := prop.(*Func); ok {
 			fn.This = x.Value
 		}
@@ -73,7 +76,7 @@ func (i *interp) evalIdent(scope *Scope, expr *ast.Ident) Value {
 
 	val := scope.Get(expr.Name)
 	if val == nil {
-		i.throw("%s is not defined", expr.Name)
+		i.Throw("%s is not defined", expr.Name)
 	}
 
 	return val.Value
@@ -91,16 +94,16 @@ func (i *interp) evalString(scope *Scope, expr *ast.StringLiteral) Value {
 			value += expr.Content
 		case *ast.StringLiteralInterpIdent:
 			val := i.evalIdent(scope, &ast.Ident{Name: expr.Name})
-			value += toString(i, scope, val)
+			value += ToString(i, scope, val)
 		case *ast.StringLiteralInterpExpr:
 			val := i.evalExpr(scope, expr.Expr)
-			value += toString(i, scope, val)
+			value += ToString(i, scope, val)
 		default:
-			i.throw("unexpected string literal part %T", expr)
+			i.Throw("unexpected string literal part %T", expr)
 		}
 	}
 
 	value += expr.StringEnd.Content
 
-	return wrap(value)
+	return Wrap(value)
 }
