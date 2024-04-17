@@ -203,7 +203,7 @@ func (p *Parser) parseSimpleStmt() ast.Stmt {
 	x := p.ParseExpr()
 
 	switch p.tok {
-	case token.Assign, token.AddAssign, token.SubAssign, token.MulAssign, token.QuoAssign, token.RemAssign, token.PowAssign:
+	case token.Assign, token.AddAssign, token.SubAssign, token.MulAssign, token.QuoAssign, token.RemAssign, token.PowAssign, token.LogAndAssign, token.LogOrAssign, token.BitAndAssign, token.BitOrAssign, token.BitXorAssign, token.BitShlAssign, token.BitShrAssign, token.LogNullAssign:
 		tok := p.tok
 		tokPos := p.pos
 		p.next()

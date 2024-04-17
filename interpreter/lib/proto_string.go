@@ -2,6 +2,7 @@ package lib
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/calico32/goose/token"
@@ -108,6 +109,19 @@ var StringPrototype = &Composite{
 			}},
 			"toLowerCase": &Func{Executor: func(ctx *FuncContext) *Return {
 				return NewReturn(NewString(strings.ToLower(ctx.This.(*String).Value)))
+			}},
+			"charCodeAt": &Func{Executor: func(ctx *FuncContext) *Return {
+				if len(ctx.Args) == 0 {
+					ctx.Interp.Throw("charCodeAt(x): expected 1 argument")
+				}
+				if _, ok := ctx.Args[0].(Numeric); !ok {
+					ctx.Interp.Throw("charCodeAt(x): expected integer as first argument")
+				}
+				i := ctx.Args[0].(Numeric).Int()
+				if i < 0 || i >= len(ctx.This.(*String).Value) {
+					ctx.Interp.Throw("charCodeAt: index out of bounds")
+				}
+				return NewReturn(NewInteger(big.NewInt(int64(int32(rune(ctx.This.(*String).Value[i]))))))
 			}},
 		},
 	},

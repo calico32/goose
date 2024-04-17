@@ -286,14 +286,20 @@ func (tok Token) Precedence() int {
 		return 4
 	case LogAnd:
 		return 5
-	case Eq, Neq, Lt, Gt, Lte, Gte:
+	case BitOr:
 		return 6
-	case Add, Sub:
+	case BitXor:
 		return 7
-	case Mul, Quo, Rem:
+	case BitAnd:
 		return 8
-	case Pow:
+	case Eq, Neq, Lt, Gt, Lte, Gte:
 		return 9
+	case Add, Sub:
+		return 10
+	case Mul, Quo, Rem:
+		return 11
+	case Pow:
+		return 12
 	}
 	return PrecedenceLowest
 }

@@ -61,14 +61,14 @@ func (i *interp) evalIdent(scope *Scope, expr *ast.Ident) Value {
 	defer un(trace(i, "ident"))
 
 	if expr.Name[0] == '#' {
-		x := scope.Get("this")
-		if x == nil {
+		this := scope.Get("this")
+		if this == nil {
 			i.Throw("invalid property access: 'this' is not defined")
 		}
 		// property
-		prop := GetProperty(x.Value, NewString(expr.Name[1:]))
+		prop := GetProperty(this.Value, NewString(expr.Name[1:]))
 		if fn, ok := prop.(*Func); ok {
-			fn.This = x.Value
+			fn.This = this.Value
 		}
 
 		return prop

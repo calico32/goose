@@ -5,21 +5,24 @@
   "version": "0.1.0",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.67.0"
+    "vscode": "^1.75.0"
   },
   "repository": {
     "type": "git",
     "url": ""
   },
+  "type": "module",
   "scripts": {
-    "generate": "yq syntaxes/goose.tmLanguage.yaml -o=json -P > syntaxes/goose.tmLanguage.json",
-    "watch": "watchexec -w syntaxes -e yaml -r \"yarn run generate\"",
+    "generate": "yq . syntaxes/goose.tmLanguage.yaml > syntaxes/goose.tmLanguage.json",
+    "watch": "watchexec -w syntaxes -e yaml -r \"bun run generate\"",
     "build": "vsce package",
-    "vscode:prepublish": "yarn run generate"
+    "vscode:prepublish": "bun run generate && esbuild src/index.ts --bundle --external:vscode --format=cjs --outfile=dist/index.js"
   },
   "categories": [
     "Programming Languages"
   ],
+  "main": "./dist/index.js",
+  "activationEvents": [],
   "contributes": {
     "languages": [
       {
@@ -46,5 +49,12 @@
         "path": "./syntaxes/goose.tmLanguage.json"
       }
     ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.2",
+    "vscode": "^1.1.37"
   }
 }

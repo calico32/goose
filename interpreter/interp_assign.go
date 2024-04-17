@@ -174,29 +174,58 @@ func (i *interp) runIncDecStmt(scope *Scope, stmt *ast.IncDecStmt) StmtResult {
 	switch lhs := stmt.X.(type) {
 	case *ast.Ident:
 		ident := lhs.Name
-		existing := scope.Get(ident)
-		if existing == nil {
-			i.Throw("%s is not defined", ident)
+		var existing Value
+		if ident[0] == '#' {
+			this := scope.Get("this")
+			if this == nil {
+				i.Throw("invalid property assignment: 'this' is not defined")
+			}
+
+			canAssign := false
+			if composite, ok := this.Value.(*Composite); ok {
+				if composite.Frozen {
+					i.Throw("cannot assign to frozen composite")
+				}
+
+				canAssign = true
+			}
+
+			if !canAssign {
+				i.Throw("cannot assign to property %s of type %s", ident, this.Value.Type())
+			}
+
+			existing = GetProperty(this.Value, NewString(ident[1:]))
+		} else {
+			v := scope.Get(ident)
+			if v == nil {
+				i.Throw("%s is not defined", ident)
+			}
+			if v.Constant {
+				i.Throw("cannot assign to constant %s", ident)
+			}
+			existing = v.Value
 		}
-		if existing.Constant {
-			i.Throw("cannot assign to constant %s", ident)
-		}
-		if _, ok := existing.Value.(Numeric); !ok {
+
+		if _, ok := existing.(Numeric); !ok {
 			i.Throw("cannot increment/decrement non-number %s", ident)
 		}
 
-		op := GetOperator(existing.Value, stmt.Tok)
+		op := GetOperator(existing, stmt.Tok)
 		if op == nil {
-			i.Throw("cannot increment/decrement %s of type %s", ident, existing.Value.Type())
+			i.Throw("cannot increment/decrement %s of type %s", ident, existing.Type())
 		}
 		newValue := op.Executor(&FuncContext{
 			Interp: i,
 			Scope:  scope,
-			This:   existing.Value,
+			This:   existing,
 			Args:   []Value{Wrap(1)},
 		})
-
-		scope.Update(ident, newValue.Value)
+		if ident[0] == '#' {
+			this := scope.Get("this")
+			SetProperty(this.Value, NewString(ident[1:]), newValue.Value)
+		} else {
+			scope.Update(ident, newValue.Value)
+		}
 	case *ast.BracketSelectorExpr:
 		obj := i.evalExpr(scope, lhs.X)
 

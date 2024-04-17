@@ -3,8 +3,10 @@ package validator
 import (
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/calico32/goose/ast"
@@ -219,31 +221,236 @@ func (v *Validator) checkStmt(scope *Scope, stmt ast.Stmt) StmtResult {
 	defer pop(push(v, stmt))
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
-		v.checkExpr(scope, stmt.X)
-		return &Void{}
+		val := v.checkExpr(scope, stmt.X)
+		if fn, ok := stmt.X.(*ast.FuncExpr); ok && fn.Name != nil && fn.Receiver == nil {
+			// special case: if the expression is a function expression with a name, mark it as a declaration
+			return &Decl{
+				Name:  fn.Name.Name,
+				Value: scope.Get(fn.Name.Name).Value,
+			}
+		}
+		return &LoneValue{Value: val}
 	case *ast.ImportStmt:
 		return v.checkImportStmt(scope, stmt)
 	case *ast.ExportDeclStmt:
 		return v.checkExportDeclStmt(scope, stmt)
+	case *ast.ConstStmt:
+		return v.checkConstStmt(scope, stmt)
+	case *ast.LetStmt:
+		return v.checkLetStmt(scope, stmt)
+	case *ast.AssignStmt:
+		return v.checkAssignStmt(scope, stmt)
+	case ast.NativeStmt:
+		return v.checkNativeStmt(scope, stmt)
+	case *ast.StructStmt:
+		return v.checkStructStmt(scope, stmt)
+	case *ast.BranchStmt:
+		return v.checkBranchStmt(scope, stmt)
+	case *ast.ReturnStmt:
+		return v.checkReturnStmt(scope, stmt)
+	case *ast.IfStmt:
+		return v.checkIfStmt(scope, stmt)
+	case *ast.ForStmt:
+		return v.checkForStmt(scope, stmt)
+	case *ast.RepeatForeverStmt:
+		return v.checkRepeatForeverStmt(scope, stmt)
+	case *ast.RepeatWhileStmt:
+		return v.checkRepeatWhileStmt(scope, stmt)
+	case *ast.RepeatCountStmt:
+		return v.checkRepeatCountStmt(scope, stmt)
+	case *ast.IncDecStmt:
+		return v.checkIncDecStmt(scope, stmt)
 	default:
 		fmt.Printf("unhandled statement type: %T\n", stmt)
 		return &Void{}
 	}
 }
 
-func (v *Validator) checkStmts(scope *Scope, body []ast.Stmt) StmtResult {
-	var last StmtResult
-	for _, stmt := range body {
-		result := v.checkStmt(scope, stmt)
-		switch result.(type) {
-		case *Return, *Break, *Continue:
-			return result
+func (v *Validator) checkIncDecStmt(scope *Scope, stmt *ast.IncDecStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	v.checkExpr(scope, stmt.X)
+
+	return &Void{}
+}
+
+func (v *Validator) checkRepeatForeverStmt(scope *Scope, stmt *ast.RepeatForeverStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	loopScope := scope.Fork(ScopeOwnerRepeat)
+	v.checkStmts(loopScope, stmt.Body)
+	return &Void{}
+}
+
+func (v *Validator) checkRepeatWhileStmt(scope *Scope, stmt *ast.RepeatWhileStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	loopScope := scope.Fork(ScopeOwnerRepeat)
+	v.checkExpr(loopScope, stmt.Cond)
+	v.checkStmts(loopScope, stmt.Body)
+	return &Void{}
+}
+
+func (v *Validator) checkRepeatCountStmt(scope *Scope, stmt *ast.RepeatCountStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	loopScope := scope.Fork(ScopeOwnerRepeat)
+	v.checkExpr(loopScope, stmt.Count)
+	v.checkStmts(loopScope, stmt.Body)
+	return &Void{}
+}
+
+func (v *Validator) checkReturnStmt(scope *Scope, stmt *ast.ReturnStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	// find the nearest function scope
+	var funcScope *Scope
+	for funcScope = scope; funcScope != nil; funcScope = funcScope.Parent() {
+		if funcScope.Owner() == ScopeOwnerFunc {
+			break
 		}
-		last = result
 	}
 
-	if val, ok := last.(*LoneValue); ok {
-		return val
+	if funcScope == nil {
+		v.Report(Error, stmt, "return outside of function")
+	}
+
+	return &Return{}
+}
+
+func (v *Validator) checkIfStmt(scope *Scope, stmt *ast.IfStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	v.checkExpr(scope, stmt.Cond)
+
+	bodyScope := scope.Fork(ScopeOwnerIf)
+	v.checkStmts(bodyScope, stmt.Body)
+
+	if stmt.Else != nil {
+		elseScope := scope.Fork(ScopeOwnerIf)
+		v.checkStmts(elseScope, stmt.Else)
+	}
+
+	return &Void{}
+}
+
+func (v *Validator) checkBranchStmt(scope *Scope, stmt *ast.BranchStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	// find the nearest loop scope
+	var loopScope *Scope
+	for loopScope = scope; loopScope != nil; loopScope = loopScope.Parent() {
+		if loopScope.Owner() == ScopeOwnerFor || loopScope.Owner() == ScopeOwnerRepeat {
+			break
+		}
+	}
+
+	if loopScope == nil {
+		v.Report(Error, stmt, "break/continue must be inside a loop")
+	}
+
+	return &Break{}
+}
+
+func (v *Validator) checkStructStmt(scope *Scope, stmt *ast.StructStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	if scope.IsDefinedInCurrentScope(stmt.Name.Name) {
+		v.Report(Error, stmt.Name, "cannot redefine struct %s", stmt.Name.Name)
+	}
+
+	// validate parameters
+	fieldNames := map[string]bool{}
+	for _, param := range stmt.Fields.List {
+		if fieldNames[param.Ident.Name] {
+			v.Report(Error, param, "duplicate field %s", param.Ident.Name)
+
+		}
+		fieldNames[param.Ident.Name] = true
+	}
+
+	for _, field := range stmt.Fields.List {
+		if field.Value != nil {
+			v.checkExpr(scope, field.Value)
+		}
+	}
+
+	proto := NewComposite()
+	proto.Name = stmt.Name.Name
+
+	closure := scope.Fork(ScopeOwnerClosure)
+
+	// create new composite for testing
+	obj := &Composite{
+		Proto:      proto,
+		Properties: make(Properties),
+		Operators:  make(Operators),
+	}
+
+	if stmt.Init != nil {
+		newScope := closure.Fork(ScopeOwnerStruct)
+
+		// set parameters in scope
+		for _, param := range stmt.Fields.List {
+			if stmt.Init != nil {
+				newScope.Set(param.Ident.Name, &Variable{
+					Constant: false,
+				})
+			}
+
+			if set, ok := obj.Properties[PKString]; ok {
+				set[param.Ident.Name] = NullValue
+			} else {
+				obj.Properties[PKString] = map[string]Value{
+					param.Ident.Name: NullValue,
+				}
+			}
+		}
+
+		// set this
+		// TODO: better this
+		newScope.Set("this", &Variable{
+			Constant: false,
+			Value:    obj,
+		})
+
+		v.checkStmts(newScope, stmt.Init.Body)
+	}
+
+	value := &Func{
+		NewableProto: proto,
+	}
+
+	scope.Set(stmt.Name.Name, &Variable{
+		Constant: false,
+		Value:    value,
+	})
+
+	return &Decl{
+		Name:  stmt.Name.Name,
+		Value: value,
+	}
+}
+
+func (v *Validator) checkForStmt(scope *Scope, stmt *ast.ForStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	v.checkExpr(scope, stmt.Iterable)
+
+	loopScope := scope.Fork(ScopeOwnerFor)
+
+	loopScope.Set(stmt.Var.Name, &Variable{
+		Constant: false,
+	})
+
+	v.checkStmts(loopScope, stmt.Body)
+
+	return &Void{}
+}
+
+func (v *Validator) checkStmts(scope *Scope, body []ast.Stmt) StmtResult {
+	for _, stmt := range body {
+		v.checkStmt(scope, stmt)
 	}
 
 	return &Void{}
@@ -577,18 +784,573 @@ func (v *Validator) checkExpr(scope *Scope, expr ast.Expr) Value {
 	defer pop(push(v, expr))
 	switch expr := expr.(type) {
 	case *ast.Ident:
-		v.checkIdent(scope, expr)
-		return nil
+		return v.checkIdent(scope, expr)
+	case *ast.FuncExpr:
+		return v.checkFuncExpr(scope, expr)
+	case *ast.FrozenExpr:
+		return v.checkFrozenExpr(scope, expr)
+	case *ast.Literal:
+		return v.checkLiteral(scope, expr)
+	case *ast.StringLiteral:
+		return v.checkStringLiteral(scope, expr)
+	case *ast.BinaryExpr:
+		return v.checkBinaryExpr(scope, expr)
+	case *ast.UnaryExpr:
+		return v.checkUnaryExpr(scope, expr)
+	case *ast.CallExpr:
+		return v.checkCallExpr(scope, expr)
+	case *ast.ParenExpr:
+		return v.checkExpr(scope, expr.X)
+	case *ast.SelectorExpr:
+		return v.checkSelectorExpr(scope, expr)
+	case *ast.ArrayLiteral:
+		return v.checkArrayLiteral(scope, expr)
+	case *ast.BracketSelectorExpr:
+		return v.checkBracketSelectorExpr(scope, expr)
+	case *ast.CompositeLiteral:
+		return v.checkCompositeLiteral(scope, expr)
+	case *ast.SliceExpr:
+		return v.checkSliceExpr(scope, expr)
+	case *ast.IfExpr:
+		return v.checkIfExpr(scope, expr)
+	case *ast.MatchExpr:
+		return v.checkMatchExpr(scope, expr)
+	case *ast.DoExpr:
+		return v.checkDoExpr(scope, expr)
+	case *ast.NativeExpr:
+		return v.checkNativeExpr(scope, expr)
 	default:
 		fmt.Printf("unhandled expression type: %T\n", expr)
 		return nil
 	}
 }
 
+func (v *Validator) checkNativeExpr(scope *Scope, expr *ast.NativeExpr) Value {
+	defer pop(push(v, expr))
+
+	module := scope.Module()
+	natives, ok := interpreter.Natives[module.Specifier]
+	if !ok {
+		v.Report(Error, expr, "module %s has no native components", module.Specifier)
+		return nil
+	}
+
+	_, ok = natives[expr.Id]
+	if !ok {
+		v.Report(Error, expr, "native %s not found", expr.Id)
+		return nil
+	}
+
+	return nil
+}
+
+func (v *Validator) checkDoExpr(scope *Scope, expr *ast.DoExpr) Value {
+	defer pop(push(v, expr))
+
+	doScope := scope.Fork(ScopeOwnerDo)
+	v.checkStmts(doScope, expr.Body)
+
+	return nil
+}
+
+func (v *Validator) checkMatchExpr(scope *Scope, expr *ast.MatchExpr) Value {
+	defer pop(push(v, expr))
+
+	v.checkExpr(scope, expr.Expr)
+
+	for _, branch := range expr.Clauses {
+		switch branch := branch.(type) {
+		case *ast.MatchPattern:
+			// TODO: check pattern
+			// v.checkPatternExpr(scope, branch.Pattern)
+			v.checkExpr(scope, branch.Expr)
+		case *ast.MatchElse:
+			v.checkExpr(scope, branch.Expr)
+		default:
+			v.Throw("unhandled match clause type: %T", branch)
+		}
+	}
+
+	return nil
+
+}
+
+func (v *Validator) checkBracketSelectorExpr(scope *Scope, expr *ast.BracketSelectorExpr) Value {
+	defer pop(push(v, expr))
+
+	v.checkExpr(scope, expr.X)
+	v.checkExpr(scope, expr.Sel)
+	v.checkPropertyKey(expr.Sel)
+
+	return nil
+}
+
+func (v *Validator) checkCompositeLiteral(scope *Scope, lit *ast.CompositeLiteral) Value {
+	defer pop(push(v, lit))
+
+	composite := NewComposite()
+
+	for _, field := range lit.Fields {
+		// var keyValue PropertyKey
+		switch key := field.Key.(type) {
+		// case *ast.Ident:
+		// keyValue = Wrap(key.Name).(PropertyKey)
+		case *ast.StringLiteral:
+			v.checkStringLiteral(scope, key)
+		default:
+			v.checkExpr(scope, key)
+
+			// if int, ok := lit.(*Integer); ok {
+			// 	keyValue = Wrap(int.Value).(PropertyKey)
+			// 	break
+			// }
+
+			// i.Throw("invalid composite literal key type %s", lit.Type())
+		}
+
+		v.checkExpr(scope, field.Value)
+
+		// SetProperty(composite, keyValue, val)
+	}
+
+	return composite
+}
+
+func (v *Validator) checkArrayLiteral(scope *Scope, lit *ast.ArrayLiteral) Value {
+	defer pop(push(v, lit))
+
+	for _, elem := range lit.List {
+		v.checkExpr(scope, elem)
+	}
+
+	return nil
+}
+
+func (v *Validator) checkSliceExpr(scope *Scope, expr *ast.SliceExpr) Value {
+	defer pop(push(v, expr))
+
+	v.checkExpr(scope, expr.X)
+
+	if expr.Low != nil {
+		v.checkExpr(scope, expr.Low)
+	}
+
+	if expr.High != nil {
+		v.checkExpr(scope, expr.High)
+	}
+
+	if expr.Low == nil && expr.High == nil {
+		v.Report(Error, expr, "slice expression must have at least one bound")
+	}
+
+	return nil
+}
+
+func (v *Validator) checkIfExpr(scope *Scope, expr *ast.IfExpr) Value {
+	defer pop(push(v, expr))
+
+	v.checkExpr(scope, expr.Cond)
+	v.checkExpr(scope, expr.Then)
+	v.checkExpr(scope, expr.Else)
+
+	return nil
+}
+
+func (v *Validator) checkSelectorExpr(scope *Scope, expr *ast.SelectorExpr) Value {
+	defer pop(push(v, expr))
+
+	v.checkExpr(scope, expr.X)
+	return nil
+}
+
+func (v *Validator) checkCallExpr(scope *Scope, expr *ast.CallExpr) Value {
+	defer pop(push(v, expr))
+
+	v.checkExpr(scope, expr.Func)
+	for _, arg := range expr.Args {
+		v.checkExpr(scope, arg)
+	}
+
+	return nil
+}
+
+func (v *Validator) checkBinaryExpr(scope *Scope, expr *ast.BinaryExpr) Value {
+	defer pop(push(v, expr))
+
+	v.checkExpr(scope, expr.X)
+	v.checkExpr(scope, expr.Y)
+	return nil
+}
+
+func (v *Validator) checkUnaryExpr(scope *Scope, expr *ast.UnaryExpr) Value {
+	defer pop(push(v, expr))
+
+	v.checkExpr(scope, expr.X)
+	return nil
+}
+
+func (v *Validator) checkLiteral(_ *Scope, expr *ast.Literal) Value {
+	switch expr.Kind {
+	case token.Int:
+		strVal := strings.ReplaceAll(expr.Value, "_", "")
+		base := 10
+		switch {
+		case strings.HasPrefix(expr.Value, "0x"):
+			strVal = strVal[2:]
+			base = 16
+		case strings.HasPrefix(expr.Value, "0o"):
+			strVal = strVal[2:]
+			base = 8
+		case strings.HasPrefix(expr.Value, "0b"):
+			strVal = strVal[2:]
+			base = 2
+		}
+		val := new(big.Int)
+		val, ok := val.SetString(strVal, base)
+		if !ok {
+			v.Report(Error, expr, "failed to parse integer")
+		}
+
+		return Wrap(val)
+
+	case token.Float:
+		val, err := strconv.ParseFloat(expr.Value, 64)
+		if err != nil {
+			v.Report(Error, expr, err.Error())
+			return nil
+		}
+
+		return Wrap(val)
+
+	case token.Null:
+		return NullValue
+
+	case token.True:
+		return TrueValue
+
+	case token.False:
+		return FalseValue
+
+	default:
+		v.Report(Error, expr, "unexpected literal kind %s", expr.Kind)
+		return nil
+	}
+}
+
+func (v *Validator) checkStringLiteral(scope *Scope, lit *ast.StringLiteral) Value {
+	defer pop(push(v, lit))
+
+	// TODO: check start and end parts
+
+	for _, part := range lit.Parts {
+		switch part := part.(type) {
+		case *ast.StringLiteralInterpExpr:
+			v.checkExpr(scope, part.Expr)
+			continue
+		case *ast.StringLiteralInterpIdent:
+			v.checkIdent(scope, &ast.Ident{Name: part.Name, NamePos: part.Pos()})
+			continue
+		case *ast.StringLiteralMiddle:
+			// TODO: check for escape sequences
+		default:
+			v.Throw("unhandled string literal part type: %T", part)
+		}
+	}
+
+	return &String{}
+}
+
 func (v *Validator) checkIdent(scope *Scope, ident *ast.Ident) Value {
 	defer pop(push(v, ident))
+	if ident.Name[0] == '#' {
+		// ignore
+		return nil
+	}
+
 	if !scope.IsDefined(ident.Name) {
 		v.Report(Error, ident, "%s is not defined", ident.Name)
 	}
 	return nil
+}
+
+func (v *Validator) checkConstStmt(scope *Scope, stmt *ast.ConstStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	if stmt.Ident.Name == "_" {
+		v.Report(Error, stmt.Ident, "cannot declare _")
+	}
+
+	if scope.IsDefinedInCurrentScope(stmt.Ident.Name) {
+		v.Report(Error, stmt.Ident, "cannot redefine variable %s", stmt.Ident.Name)
+	}
+
+	value := v.checkExpr(scope, stmt.Value)
+
+	scope.Set(stmt.Ident.Name, &Variable{
+		Constant: true,
+		Value:    value,
+	})
+
+	return &Decl{
+		Name:  stmt.Ident.Name,
+		Value: value,
+	}
+}
+
+func (v *Validator) checkLetStmt(scope *Scope, stmt *ast.LetStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	if stmt.Ident.Name == "_" {
+		v.Report(Error, stmt.Ident, "cannot declare _")
+	}
+
+	if scope.IsDefinedInCurrentScope(stmt.Ident.Name) {
+		v.Report(Error, stmt.Ident, "cannot redefine variable %s", stmt.Ident.Name)
+	}
+
+	var value Value
+
+	if stmt.Value != nil {
+		value = v.checkExpr(scope, stmt.Value)
+	}
+
+	if value == nil {
+		value = NullValue
+	}
+
+	scope.Set(stmt.Ident.Name, &Variable{
+		Constant: false,
+		Value:    value,
+	})
+
+	return &Decl{
+		Name:  stmt.Ident.Name,
+		Value: value,
+	}
+}
+
+func (v *Validator) checkAssignStmt(scope *Scope, stmt *ast.AssignStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	switch lhs := stmt.Lhs.(type) {
+	case *ast.Ident:
+		ident := lhs.Name
+
+		if ident[0] == '#' {
+			x := scope.Get("this")
+			if x == nil {
+				v.Report(Error, lhs, "invalid property assignment: 'this' is not defined")
+			}
+			v.checkExpr(scope, stmt.Rhs)
+
+			return &Void{}
+		}
+
+		existing := scope.Get(ident)
+		if existing == nil {
+			v.Report(Error, lhs, "%s is not defined", ident)
+		} else if existing.Constant {
+			v.Report(Error, lhs, "cannot assign to constant %s", ident)
+		}
+
+		// op := GetOperator(existing.Value, stmt.Tok)
+		// if op == nil {
+		// 	node := &ast.PosRange{From: stmt.TokPos, To: stmt.TokPos + token.Pos(len(stmt.Tok.String()))}
+		// 	v.Report(Error, node, "operator %s not defined for type %s", stmt.Tok, existing.Value.Type())
+		// }
+		v.checkExpr(scope, stmt.Rhs)
+		return &Void{}
+	case *ast.SelectorExpr:
+		v.checkExpr(scope, lhs.X)
+		v.checkExpr(scope, stmt.Rhs)
+	case *ast.BracketSelectorExpr:
+		v.checkExpr(scope, lhs.X)
+		v.checkExpr(scope, lhs.Sel)
+		v.checkPropertyKey(lhs.Sel)
+		v.checkExpr(scope, stmt.Rhs)
+	}
+
+	return &Void{}
+}
+
+func (v *Validator) checkPropertyKey(expr ast.Expr) {
+	switch expr := expr.(type) {
+	case *ast.StringLiteral, *ast.Literal:
+		// valid key
+	case *ast.Ident:
+		if expr.Name == "true" || expr.Name == "false" || expr.Name == "null" {
+			v.Report(Error, expr, "invalid key %s", expr.Name)
+		}
+		// otherwise, we have no way of knowing if this is a valid key
+	case *ast.CompositeLiteral, *ast.FrozenExpr, *ast.BindExpr, *ast.ArrayLiteral, *ast.DoExpr, *ast.FuncExpr, *ast.NativeExpr, *ast.ArrayInitializer, *ast.EllipsisExpr, *ast.GeneratorExpr:
+		// TODO: exhaustive list of invalid keys
+		v.Report(Error, expr, "invalid key %s", expr)
+	default:
+		// we have no way of knowing if this is a valid key
+	}
+}
+
+func (v *Validator) checkFrozenExpr(scope *Scope, expr *ast.FrozenExpr) Value {
+	defer pop(push(v, expr))
+
+	if _, ok := expr.X.(*ast.CompositeLiteral); !ok {
+		v.Report(Error, expr, "frozen keyword can only be used with composite literals")
+	}
+
+	return v.checkExpr(scope, expr.X)
+}
+func (v *Validator) checkNativeStmt(scope *Scope, stmt ast.NativeStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	var name string
+	switch stmt := stmt.(type) {
+	case *ast.NativeConst:
+		name = "C/" + stmt.Ident.Name
+	case *ast.NativeStruct:
+		name = "S/" + stmt.Name.Name
+	case *ast.NativeFunc:
+		if stmt.Receiver != nil {
+			name = "F/" + stmt.Receiver.Name + "." + name
+		} else {
+			name = "F/" + stmt.Name.Name
+		}
+	case *ast.NativeOperator:
+		name = "O/" + stmt.Receiver.Name + "." + stmt.Tok.String()
+	default:
+		v.Report(Error, stmt, "invalid native stmt type %T", stmt)
+	}
+
+	specifier := scope.Module().Specifier
+
+	if moduleNatives, ok := interpreter.Natives[specifier]; ok {
+		if value, ok := moduleNatives[name]; ok {
+			if fn, ok := stmt.(*ast.NativeFunc); ok && fn.Receiver != nil {
+				// find proto
+				// TODO: limit to current module
+				constructor := scope.Get(fn.Receiver.Name)
+				if constructor == nil {
+					v.Report(Error, stmt, "unknown type %s", fn.Receiver.Name)
+					return nil
+				} else if val, ok := constructor.Value.(*Func); !ok || val.NewableProto == nil {
+					v.Report(Error, stmt, "%s cannot have receiver functions", fn.Receiver.Name)
+					return nil
+				}
+
+				proto := constructor.Value.(*Func).NewableProto
+
+				if proto.Properties[PKString] == nil {
+					proto.Properties[PKString] = make(map[string]Value)
+				}
+
+				if _, ok := proto.Properties[PKString][fn.Name.Name]; ok {
+					v.Report(Error, stmt, "duplicate receiver function %s", fn.Name.Name)
+				}
+
+				proto.Properties[PKString][fn.Name.Name] = value
+			}
+
+			scope.Set(name[2:], &Variable{
+				Value:    value,
+				Constant: true,
+			})
+			return &Decl{
+				Name:  name[2:],
+				Value: value,
+			}
+		}
+	}
+
+	v.Report(Error, stmt, "native %s not found", name)
+	return nil
+}
+
+func (v *Validator) checkFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
+	defer pop(push(v, expr))
+
+	if expr.Name != nil && expr.Receiver == nil {
+		if scope.IsDefinedInCurrentScope(expr.Name.Name) {
+			v.Report(Error, expr.Name, "cannot redefine function %s", expr.Name.Name)
+		}
+	}
+
+	// validate parameters
+	paramNames := map[string]bool{}
+	for _, param := range expr.Params.List {
+		if paramNames[param.Ident.Name] {
+			v.Report(Error, param.Ident, "duplicate parameter %s", param.Ident.Name)
+		}
+		paramNames[param.Ident.Name] = true
+	}
+
+	for _, param := range expr.Params.List {
+		if param.Value != nil {
+			v.checkExpr(scope, param.Value)
+		}
+	}
+
+	closure := scope.Fork(ScopeOwnerClosure)
+	funcScope := closure.Fork(ScopeOwnerFunc)
+
+	// set parameters in scope
+	for _, param := range expr.Params.List {
+		funcScope.Set(param.Ident.Name, &Variable{
+			Constant: false,
+		})
+	}
+
+	// TODO: better this
+	funcScope.Set("this", &Variable{
+		Constant: true,
+	})
+
+	if expr.Arrow.IsValid() {
+		v.checkExpr(funcScope, expr.ArrowExpr)
+	}
+
+	v.checkStmts(funcScope, expr.Body)
+
+	value := &Func{
+		Async:    expr.Async.IsValid(),
+		Memoized: expr.Memo.IsValid(),
+	}
+
+	if expr.Name != nil {
+		if expr.Receiver != nil {
+			// find proto
+			// TODO: limit to current module
+			constructor := scope.Get(expr.Receiver.Name)
+			exit := false
+
+			if constructor == nil {
+				v.Report(Error, expr, "unknown type %s", expr.Receiver.Name)
+				exit = true
+			} else if val, ok := constructor.Value.(*Func); !ok || val == nil || val.NewableProto == nil {
+				v.Report(Error, expr, "%s cannot have receiver functions", expr.Receiver.Name)
+				exit = true
+			}
+
+			if exit {
+				return nil
+			}
+
+			proto := constructor.Value.(*Func).NewableProto
+
+			if proto.Properties[PKString] == nil {
+				proto.Properties[PKString] = make(map[string]Value)
+			}
+
+			if _, ok := proto.Properties[PKString][expr.Name.Name]; ok {
+				v.Report(Error, expr.Name, "duplicate receiver function %s", expr.Name.Name)
+			}
+
+			proto.Properties[PKString][expr.Name.Name] = value
+		} else {
+			scope.Set(expr.Name.Name, &Variable{
+				Constant: true, // functions are constants
+				Value:    value,
+			})
+		}
+	}
+
+	return value
 }

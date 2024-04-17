@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/calico32/goose/compiler"
 	"github.com/calico32/goose/interpreter"
 	std_platform "github.com/calico32/goose/lib/std/platform"
 	"github.com/calico32/goose/parser"
@@ -44,6 +45,7 @@ func main() {
 		fmt.Println("Commands:")
 		fmt.Println("  run [file] [arguments]   Run a goose program")
 		fmt.Println("  validate [file] 	        Check a goose program for errors")
+		fmt.Println("  build [file]             Compile a goose program")
 		fmt.Println("  scan [file]              Scan a goose program")
 		fmt.Println("  parse [file]             Parse a goose program")
 		fmt.Println()
@@ -55,7 +57,7 @@ func main() {
 	var verb string
 	var args []string
 
-	if flag.NArg() < 2 && flag.Arg(0) != "scan" && flag.Arg(0) != "parse" && flag.Arg(0) != "validate" {
+	if flag.NArg() < 2 && flag.Arg(0) != "scan" && flag.Arg(0) != "parse" && flag.Arg(0) != "validate" && flag.Arg(0) != "build" {
 		verb = "run"
 		args = flag.Args()
 	} else if flag.NArg() < 2 {
@@ -80,6 +82,38 @@ func main() {
 	}
 
 	switch verb {
+	case "build":
+		if len(args) < 1 {
+			fmt.Println("Missing module")
+			os.Exit(1)
+		}
+
+		spec := args[0]
+
+		if !strings.Contains(spec, ":") {
+			// no scheme, assume file
+			absPath, err := filepath.Abs(spec)
+			if err != nil {
+				panic(err)
+			}
+			spec = "file:" + absPath
+		}
+
+		fset := token.NewFileSet()
+
+		f, err := parser.ParseFile(fset, spec, nil, nil)
+		if err != nil {
+			panic(err)
+		}
+
+		c, err := compiler.New(f, fset, false, os.Stdin, outWriter, os.Stderr)
+		if err != nil {
+			panic(err)
+		}
+
+		module := c.Compile()
+
+		fmt.Println(module)
 	case "validate":
 		if len(args) < 1 {
 			fmt.Println("Missing module")
@@ -116,7 +150,9 @@ func main() {
 
 		for _, d := range v.Diagnostics() {
 			fmt.Printf("%s: %s\n", d.Severity.String(), d.Message)
-			fmt.Printf("\tat %s\n", fset.Position(d.Node.Pos()))
+
+			pos := strings.TrimPrefix(fset.Position(d.Node.Pos()).String(), "file:")
+			fmt.Printf("\tat %s\n", pos)
 		}
 
 		os.Exit(exitCode)

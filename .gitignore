@@ -4,8 +4,6 @@ test/main.goose
 test/**
 /goose
 .vscode/settings.json
-compiler
-lsp
 llvm
 .idea
 
@@ -13,3 +11,4 @@ _compiler
 _llvm
 
 tmp
+build

@@ -1,3 +1,6 @@
 .vscode/settings.json
 syntaxes/goose.tmLanguage.json
 *.vsix
+
+node_modules
+dist

@@ -23,7 +23,7 @@ repository:
       - include: '#function-arrows'
       - include: '#operators'
       - include: '#strings'
-      - include: '#directives'
+      # - include: '#directives'
   comments:
     patterns:
       - name: comment.block.goose
@@ -132,7 +132,7 @@ repository:
       - name: keyword.operator.spread.goose
         match: \.\.\.
       - name: keyword.operator.other.goose
-        match: '\?|::'
+        match: '\?|::|#'
   struct-declarations:
     begin: \b(struct)\s+([A-Za-z$_][A-Za-z0-9$_]*)\s*(?:<(.*?)>)?\s*(\()
     beginCaptures:
