@@ -64,3 +64,49 @@ func (*RepeatWhileStmt) stmtNode()   {}
 func (*RepeatForeverStmt) stmtNode() {}
 func (*RepeatCountStmt) stmtNode()   {}
 func (*BranchStmt) stmtNode()        {}
+
+func (s *ForStmt) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Body))
+	// if s.Var != nil {
+	// 	nodes = append(nodes, s.Var.Flatten()...)
+	// }
+	nodes = append(nodes, s.Iterable.Flatten()...)
+	for _, stmt := range s.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}
+
+func (s *RepeatWhileStmt) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Body))
+	nodes = append(nodes, s.Cond.Flatten()...)
+	for _, stmt := range s.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}
+
+func (s *RepeatForeverStmt) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Body))
+	for _, stmt := range s.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}
+
+func (s *RepeatCountStmt) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Body))
+	nodes = append(nodes, s.Count.Flatten()...)
+	for _, stmt := range s.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}
+
+func (s *BranchStmt) Flatten() []Node {
+	nodes := make([]Node, 0)
+	if s.Label != nil {
+		nodes = append(nodes, s.Label)
+	}
+	return nodes
+}

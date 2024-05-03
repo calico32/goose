@@ -1,6 +1,8 @@
 package ast
 
-import "github.com/calico32/goose/token"
+import (
+	"github.com/calico32/goose/token"
+)
 
 type (
 	ExprStmt struct {
@@ -137,3 +139,45 @@ func (id *Ident) String() string {
 	}
 	return "<nil>"
 }
+
+func (s *ExprStmt) Flatten() []Node   { return s.X.Flatten() }
+func (x *BadExpr) Flatten() []Node    { return nil }
+func (x *FrozenExpr) Flatten() []Node { return x.X.Flatten() }
+func (x *Ident) Flatten() []Node      { return []Node{x} }
+func (x *ParenExpr) Flatten() []Node  { return x.X.Flatten() }
+func (x *SelectorExpr) Flatten() []Node {
+	nodes := make([]Node, 0, 2)
+	nodes = append(nodes, x.X.Flatten()...)
+	// nodes = append(nodes, x.Sel)
+	return nodes
+}
+func (x *BracketSelectorExpr) Flatten() []Node {
+	nodes := make([]Node, 0, 2)
+	nodes = append(nodes, x.X.Flatten()...)
+	nodes = append(nodes, x.Sel.Flatten()...)
+	return nodes
+}
+func (x *BindExpr) Flatten() []Node {
+	nodes := make([]Node, 0, 2)
+	nodes = append(nodes, x.X.Flatten()...)
+	nodes = append(nodes, x.Sel.Flatten()...)
+	return nodes
+}
+func (x *CallExpr) Flatten() []Node {
+	nodes := make([]Node, 0, len(x.Args)+1)
+	nodes = append(nodes, x.Func.Flatten()...)
+	for _, arg := range x.Args {
+		nodes = append(nodes, arg.Flatten()...)
+	}
+	return nodes
+}
+func (x *UnaryExpr) Flatten() []Node    { return x.X.Flatten() }
+func (x *BinaryExpr) Flatten() []Node   { return append(x.X.Flatten(), x.Y.Flatten()...) }
+func (x *EllipsisExpr) Flatten() []Node { return x.X.Flatten() }
+func (x *KeyValueExpr) Flatten() []Node {
+	nodes := make([]Node, 0, 2)
+	nodes = append(nodes, x.Key.Flatten()...)
+	nodes = append(nodes, x.Value.Flatten()...)
+	return nodes
+}
+func (x *AwaitExpr) Flatten() []Node { return x.X.Flatten() }

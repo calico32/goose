@@ -1,0 +1,93 @@
+<aside class="p-4 z-10 overflow-y-scroll">
+  <nav data-selected="{{ .Path }}" id="docs-nav" class="w-64">
+    <ul>
+      <li class="navheader !mt-0">
+        GOOSE DOCUMENTATION
+      </li>
+      <li><a href="/docs" class="navlink">Overview</a></li>
+      <li><a href="/docs/getting-started" class="navlink">Get Started</a></li>
+      <li><a href="/docs/language-tour" class="navlink">Language Tour</a></li>
+
+      <li class="navheader !mt-4 ml-4">
+        LANGUAGE BASICS
+      </li>
+      <li class="navgroup">
+        <ul>
+          <li><a href="/docs/types" class="navlink">Types</a></li>
+          <li><a href="/docs/variables" class="navlink">Variables</a></li>
+          <li><a href="/docs/control-flow" class="navlink">Control Flow</a></li>
+          <li><a href="/docs/functions" class="navlink">Functions</a></li>
+          <li><a href="/docs/custom-types" class="navlink">Custom Types</a></li>
+          <li><a href="/docs/modules" class="navlink">Modules & Packages</a></li>
+          <li><a href="/docs/introspection" class="navlink">Introspection</a></li>
+        </ul>
+      </li>
+
+      <li class="navheader !mt-4 ml-4">
+        GOOSE IN-DEPTH
+      </li>
+      <li class="navgroup">
+        <ul>
+          <li><a href="/docs/syntax" class="navlink">Syntax</a></li>
+        </ul>
+      </li>
+
+      <li class="navheader">
+        API REFERENCE
+      </li>
+      <li>
+        <a href="/docs/api" class="navlink">Overview</a>
+      </li>
+      <li>
+        <div data-href="/docs/api/builtin" class="navlink">
+          <a href="/docs/api/builtin">Built-in Functions</a>
+        </div>
+        <ul>
+          {{range .Builtins}}
+          <li><a href="/docs/api/builtin/{{.Name}}" class="navlink">{{.Label}}</a></li>
+          {{end}}
+        </ul>
+      </li>
+      <li>
+        <div data-href="/docs/api/std" class="navlink">
+          <a href="/docs/api/std">Standard Library</a>
+        </div>
+        <ul>
+          {{range .StandardLibrary}}
+          <li><a href="/docs/api/std/{{.Name}}" class="navlink">std:{{.Name}}</a></li>
+          {{end}}
+        </ul>
+      </li>
+    </ul>
+  </nav>
+</aside>
+
+{{define "docs-nav-scripts"}}
+<script type="module">
+  const docsNav = document.getElementById('docs-nav');
+  const selected = docsNav.getAttribute('data-selected');
+  const links =
+    [
+      ...docsNav.querySelectorAll('a'),
+      ...docsNav.querySelectorAll('[data-href]'),
+      ...docsNav.querySelectorAll('.navlink')
+    ]
+  links.forEach(link => {
+    if (link.getAttribute('href') === selected || link.getAttribute('data-href') === selected) {
+      link.classList.add('selected');
+    }
+  });
+</script>
+
+<script type="module">
+  const nav = document.getElementById('nav')
+  const wrapper = document.getElementById('docs-wrapper')
+
+  const observer = new ResizeObserver(entries => {
+    const height = entries[0].contentRect.height
+    wrapper.style.maxHeight = `calc(100dvh - ${height}px)`
+  })
+
+  observer.observe(nav)
+</script>
+{{end}}

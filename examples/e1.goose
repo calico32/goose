@@ -1,5 +1,3 @@
-// returns the n-th fibonacci number
-// memoized for speed
 let calls = 0
 memo fn fib(n)
   calls++
@@ -10,7 +8,6 @@ memo fn fib(n)
     return fib(n - 1) + fib(n - 2)
   end
 end
-
 
 for n in 1 to 101
   let suffix = "th"
@@ -23,7 +20,7 @@ for n in 1 to 101
       suffix = "rd"
     end
   end
-  println("the ${n}$suffix fibonacci number is ${fib(n)}") // $ is valid in identifiers, so the n needs to be wrapped in {}
+  println("the $n$suffix fibonacci number is ${fib(n)}")
 end
 
 println("calls: $calls")

@@ -12,3 +12,4 @@ _llvm
 
 tmp
 build
+deploy.sh

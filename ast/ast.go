@@ -22,6 +22,7 @@ type Token struct {
 type Node interface {
 	Pos() token.Pos
 	End() token.Pos
+	Flatten() []Node
 }
 
 type PosRange struct {
@@ -69,6 +70,10 @@ func (*BadStmt) stmtNode()     {}
 func (*EmptyStmt) stmtNode()   {}
 func (*LabeledStmt) stmtNode() {}
 
+func (s *BadStmt) Flatten() []Node     { return []Node{s} }
+func (s *EmptyStmt) Flatten() []Node   { return []Node{s} }
+func (s *LabeledStmt) Flatten() []Node { return []Node{s} }
+
 type Module struct {
 	Type      ModuleType
 	Specifier string
@@ -76,6 +81,7 @@ type Module struct {
 
 	Size  int
 	Stmts []Stmt
+	Nodes []Node
 }
 
 func (m *Module) Pos() token.Pos {
@@ -92,10 +98,42 @@ func (m *Module) End() token.Pos {
 	return token.NoPos
 }
 
+func (m *Module) Flatten() []Node {
+	if m.Nodes != nil {
+		return m.Nodes
+	}
+
+	nodes := make([]Node, 0, len(m.Stmts))
+	for _, stmt := range m.Stmts {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	m.Nodes = nodes
+	return nodes
+}
+
+func (m *Module) FindNode(pos token.Pos) Node {
+	return nil
+	nodes := m.Flatten()
+	i := 0
+	j := len(nodes)
+	for i < j {
+		h := i + (j-i)/2
+		if pos < nodes[h].Pos() {
+			j = h
+		} else {
+			i = h + 1
+		}
+	}
+	if i < len(nodes) && pos >= nodes[i].Pos() && pos < nodes[i].End() {
+		return nodes[i]
+	}
+	return nil
+}
+
 type ModuleType int
 
 const (
-	Filesystem ModuleType = iota
-	Memory
-	Network
+	ModuleTypeFilesystem ModuleType = iota
+	ModuleTypeMemory
+	ModuleTypeNetwork
 )

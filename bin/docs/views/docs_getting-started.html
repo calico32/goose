@@ -1,0 +1,63 @@
+{{template "+docs_layout.html" .}}
+
+{{define "docs-title"}}Get started{{end}}
+
+{{define "docs-content"}}
+<section class="prose prose-invert prose-zinc">
+  <h1 class="text-3xl font-bold">Get started</h1>
+
+  <h2>Download goose</h2>
+
+  <p>
+    goose is available for Windows, macOS, and Linux. You can download the latest release from the <a
+      href="https://github.com/calico32/goose/releases" class="text-blue-400">GitHub repository</a>.
+  </p>
+
+  <p>
+    goose ships a single binary that you can run from the command line. To install goose, download the binary for your
+    operating system and move it to a directory in your <code>PATH</code>.
+  </p>
+
+  <h3>Build from source</h3>
+
+  <p>
+    If you prefer to build goose from source, you'll need <a href="https://go.dev">Go</a> installed on your computer.
+    Then, clone the <a href="https://github.com/calico32/goose" class="text-blue-400">GitHub repository</a> and run
+    `make goose` to build. The resulting binary will be in the `build` directory.
+
+  <h2>Editor support</h2>
+
+  <p>
+    goose supports the Language Server Protocol (LSP) for code completion, diagnostics, and other editor features,
+    except for syntax highlighting, which is currently Visual Studio Code only. An extension for Visual Studio Code is
+    available in the <a href="https://marketplace.visualstudio.com/items?itemName=calico32.goose"
+      class="text-blue-400">Visual Studio Code Marketplace</a>. Support for other editors is not planned, but creating
+    an extension for your favorite editor is simple. Check out the <a href="/docs/language/server"
+      class="text-blue-400">Language Server Protocol</a> documentation for more information.
+  </p>
+
+  <h2>Write your first goose program</h2>
+
+  <p>
+    Take the <a href="/docs/language-tour" class="text-blue-400">goose language tour</a> to learn the basics of the
+    language. The tour covers the most important features of goose and is a great way to get started.
+  </p>
+
+  <p>
+    Once you've completed the tour, you can explore the rest of the documentation to learn more about goose's features
+    and how to use them in your programs.
+  </p>
+
+  <h2>Remember, goose is a work in progress</h2>
+
+  <p>
+    There will most definitely be bugs and missing features in goose. If you encounter any issues, please report them on
+    the <a href="https://github.com/calico32/goose/issues" class="text-blue-400">GitHub issue tracker</a>. Your feedback
+    is invaluable and will help make goose better for everyone.
+  </p>
+
+  <p>
+    Thank you for trying out goose!
+  </p>
+</section>
+{{end}}

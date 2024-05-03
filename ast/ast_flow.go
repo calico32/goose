@@ -106,3 +106,65 @@ func (*CatchStmt) stmtNode()   {}
 func (*FinallyStmt) stmtNode() {}
 func (*ThrowExpr) exprNode()   {}
 func (*DoExpr) exprNode()      {}
+
+func (s *IfStmt) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Body))
+	nodes = append(nodes, s.Cond.Flatten()...)
+	for _, stmt := range s.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	for _, stmt := range s.Else {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}
+
+func (e *IfExpr) Flatten() []Node {
+	nodes := make([]Node, 0, 3)
+	nodes = append(nodes, e.Cond.Flatten()...)
+	nodes = append(nodes, e.Then.Flatten()...)
+	nodes = append(nodes, e.Else.Flatten()...)
+	return nodes
+}
+
+func (s *TryStmt) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Body))
+	for _, stmt := range s.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	if s.Catch != nil {
+		nodes = append(nodes, s.Catch.Flatten()...)
+	}
+	if s.Finally != nil {
+		nodes = append(nodes, s.Finally.Flatten()...)
+	}
+	return nodes
+}
+
+func (s *CatchStmt) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Body))
+	for _, stmt := range s.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}
+
+func (s *FinallyStmt) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Body))
+	for _, stmt := range s.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}
+
+func (s *ThrowExpr) Flatten() []Node {
+	return s.X.Flatten()
+}
+
+func (s *DoExpr) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Body))
+	for _, stmt := range s.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}

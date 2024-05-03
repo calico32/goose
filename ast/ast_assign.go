@@ -50,3 +50,27 @@ func (*ConstStmt) stmtNode()  {}
 func (*LetStmt) stmtNode()    {}
 func (*AssignStmt) stmtNode() {}
 func (*IncDecStmt) stmtNode() {}
+
+func (s *ConstStmt) Flatten() []Node {
+	nodes := make([]Node, 0, 2)
+	nodes = append(nodes, s.Ident.Flatten()...)
+	nodes = append(nodes, s.Value.Flatten()...)
+	return nodes
+}
+func (s *LetStmt) Flatten() []Node {
+	nodes := make([]Node, 0, 2)
+	nodes = append(nodes, s.Ident.Flatten()...)
+	if s.Value != nil {
+		nodes = append(nodes, s.Value.Flatten()...)
+	}
+	return nodes
+}
+func (s *AssignStmt) Flatten() []Node {
+	nodes := make([]Node, 0, 2)
+	nodes = append(nodes, s.Lhs.Flatten()...)
+	nodes = append(nodes, s.Rhs.Flatten()...)
+	return nodes
+}
+func (s *IncDecStmt) Flatten() []Node {
+	return s.X.Flatten()
+}

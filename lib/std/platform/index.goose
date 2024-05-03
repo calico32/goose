@@ -1,5 +1,5 @@
-native const os
-native const arch
-native const version
-native const runtime
-native const buildTime
+export native const os
+export native const arch
+export native const version
+export native const runtime
+export native const buildTime

@@ -44,6 +44,11 @@ func (*ExportDeclStmt) stmtNode() {}
 func (*ExportListStmt) stmtNode() {}
 func (*ExportSpecStmt) stmtNode() {}
 
+func (s *ImportStmt) Flatten() []Node     { return s.Spec.Flatten() }
+func (s *ExportDeclStmt) Flatten() []Node { return s.Stmt.Flatten() }
+func (s *ExportListStmt) Flatten() []Node { return s.List.Flatten() }
+func (s *ExportSpecStmt) Flatten() []Node { return s.Spec.Flatten() }
+
 type (
 	ModuleSpec interface {
 		Node
@@ -119,12 +124,12 @@ type (
 		exportField()
 	}
 
-	// import "foo" show { foo }
+	// export "foo" show { foo }
 	ExportFieldIdent struct {
 		Ident *Ident
 	}
 
-	// import "foo" show { foo as foo2 }
+	// export "foo" show { foo as foo2 }
 	ExportFieldAs struct {
 		Ident *Ident
 		As    token.Pos
@@ -132,24 +137,21 @@ type (
 	}
 )
 
-func (s *ModuleSpecPlain) Pos() token.Pos { return s.SpecifierPos }
-func (s *ModuleSpecAs) Pos() token.Pos    { return s.SpecifierPos }
-func (s *ModuleSpecShow) Pos() token.Pos  { return s.SpecifierPos }
-
+func (s *ModuleSpecPlain) Pos() token.Pos   { return s.SpecifierPos }
+func (s *ModuleSpecAs) Pos() token.Pos      { return s.SpecifierPos }
+func (s *ModuleSpecShow) Pos() token.Pos    { return s.SpecifierPos }
 func (s *Show) Pos() token.Pos              { return s.Show }
 func (s *ShowFieldIdent) Pos() token.Pos    { return s.Ident.Pos() }
 func (s *ShowFieldEllipsis) Pos() token.Pos { return s.Ellipsis }
 func (s *ShowFieldAs) Pos() token.Pos       { return s.Ident.Pos() }
 func (s *ShowFieldSpec) Pos() token.Pos     { return s.Spec.Pos() }
-
-func (s *ExportList) Pos() token.Pos       { return s.LBrace }
-func (s *ExportFieldIdent) Pos() token.Pos { return s.Ident.Pos() }
-func (s *ExportFieldAs) Pos() token.Pos    { return s.Ident.Pos() }
+func (s *ExportList) Pos() token.Pos        { return s.LBrace }
+func (s *ExportFieldIdent) Pos() token.Pos  { return s.Ident.Pos() }
+func (s *ExportFieldAs) Pos() token.Pos     { return s.Ident.Pos() }
 
 func (s *ModuleSpecPlain) End() token.Pos { return s.SpecifierPos + token.Pos(len(s.Specifier)) + 2 }
 func (s *ModuleSpecAs) End() token.Pos    { return s.Alias.End() }
 func (s *ModuleSpecShow) End() token.Pos  { return s.Show.RBrace + 1 }
-
 func (s *Show) End() token.Pos {
 	if s.Ellipsis.IsValid() {
 		return s.Ellipsis + 3
@@ -161,26 +163,47 @@ func (s *ShowFieldIdent) End() token.Pos    { return s.Ident.End() }
 func (s *ShowFieldEllipsis) End() token.Pos { return s.Ident.End() }
 func (s *ShowFieldAs) End() token.Pos       { return s.Alias.End() }
 func (s *ShowFieldSpec) End() token.Pos     { return s.Spec.End() }
-
-func (s *ExportList) End() token.Pos       { return s.RBrace + 1 }
-func (s *ExportFieldIdent) End() token.Pos { return s.Ident.End() }
-func (s *ExportFieldAs) End() token.Pos    { return s.Alias.End() }
+func (s *ExportList) End() token.Pos        { return s.RBrace + 1 }
+func (s *ExportFieldIdent) End() token.Pos  { return s.Ident.End() }
+func (s *ExportFieldAs) End() token.Pos     { return s.Alias.End() }
 
 func (*ModuleSpecPlain) importExportSpec() {}
 func (*ModuleSpecAs) importExportSpec()    {}
 func (*ModuleSpecShow) importExportSpec()  {}
+func (*ShowFieldIdent) showField()         {}
+func (*ShowFieldEllipsis) showField()      {}
+func (*ShowFieldAs) showField()            {}
+func (*ShowFieldSpec) showField()          {}
+func (*ExportFieldIdent) exportField()     {}
+func (*ExportFieldAs) exportField()        {}
 
 func (s *ModuleSpecPlain) ModuleSpecifier() string { return s.Specifier }
 func (s *ModuleSpecAs) ModuleSpecifier() string    { return s.Specifier }
 func (s *ModuleSpecShow) ModuleSpecifier() string  { return s.Specifier }
 
-func (*ShowFieldIdent) showField()    {}
-func (*ShowFieldEllipsis) showField() {}
-func (*ShowFieldAs) showField()       {}
-func (*ShowFieldSpec) showField()     {}
-
-func (*ExportFieldIdent) exportField() {}
-func (*ExportFieldAs) exportField()    {}
+func (s *ModuleSpecPlain) Flatten() []Node { return nil }
+func (s *ModuleSpecAs) Flatten() []Node    { return nil }
+func (s *ModuleSpecShow) Flatten() []Node  { return s.Show.Flatten() }
+func (s *Show) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Fields))
+	for _, field := range s.Fields {
+		nodes = append(nodes, field.Flatten()...)
+	}
+	return nodes
+}
+func (s *ShowFieldIdent) Flatten() []Node    { return nil }
+func (s *ShowFieldEllipsis) Flatten() []Node { return nil }
+func (s *ShowFieldAs) Flatten() []Node       { return nil }
+func (s *ShowFieldSpec) Flatten() []Node     { return s.Spec.Flatten() }
+func (s *ExportList) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Fields))
+	for _, field := range s.Fields {
+		nodes = append(nodes, field.Flatten()...)
+	}
+	return nodes
+}
+func (s *ExportFieldIdent) Flatten() []Node { return nil }
+func (s *ExportFieldAs) Flatten() []Node    { return nil }
 
 func ModuleName(specifier string) (name string, err error) {
 	if specifier == "" {

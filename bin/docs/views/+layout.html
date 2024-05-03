@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="view-transition" content="same-origin" />
+  <link rel="icon" href="/static/img/goose.png" />
+  <link rel="shortcut icon" href="/static/img/goose.png" type="image/x-icon" />
+  <meta name="og:title" content="goose programming language" />
+  <meta name="og:description"
+    content="goose is a general-purpose programming language. It's simple, readable, and easy to learn." />
+  <meta name="og:image" content="/static/img/goose.png" />
+
+  <title>{{block "title" .}}{{end}}</title>
+
+  <link rel="stylesheet" href="/static/css/tailwind.css" />
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+  {{block "styles" .}}{{end}}
+
+  {{block "head" .}}{{end}}
+</head>
+
+<body class="font-sans">
+  {{template "+nav.html" .}}
+  <div id="main" class="pt-20">
+    {{block "main" .}}{{end}}
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const nav = document.getElementById("nav")
+      const main = document.getElementById("main")
+      const observer = new ResizeObserver((entries) => {
+        const navHeight = nav.offsetHeight
+        main.style.paddingTop = `${navHeight}px`
+      })
+      observer.observe(nav)
+    });
+  </script>
+  {{block "scripts" .}}{{end}}
+
+</body>
+
+</html>

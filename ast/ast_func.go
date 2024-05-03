@@ -92,3 +92,48 @@ func (f *FuncParam) Pos() token.Pos {
 	return f.Ident.Pos()
 }
 func (f *FuncParam) End() token.Pos { return f.Ident.End() }
+
+func (f *FuncExpr) Flatten() []Node {
+	nodes := make([]Node, 0, len(f.Body))
+	if f.Receiver != nil {
+		nodes = append(nodes, f.Receiver.Flatten()...)
+	}
+
+	if f.Name != nil {
+		nodes = append(nodes, f.Name.Flatten()...)
+	}
+
+	if f.Params != nil {
+		nodes = append(nodes, f.Params.Flatten()...)
+	}
+
+	if f.ArrowExpr != nil {
+		nodes = append(nodes, f.ArrowExpr.Flatten()...)
+	}
+
+	if len(f.Body) > 0 {
+		for _, stmt := range f.Body {
+			nodes = append(nodes, stmt.Flatten()...)
+		}
+	}
+	return nodes
+}
+
+func (f *ReturnStmt) Flatten() []Node { return f.Result.Flatten() }
+
+func (f *FuncParamList) Flatten() []Node {
+	nodes := make([]Node, 0, len(f.List))
+	for _, param := range f.List {
+		nodes = append(nodes, param.Flatten()...)
+	}
+	return nodes
+}
+
+func (f *FuncParam) Flatten() []Node {
+	nodes := make([]Node, 0, 2)
+	// nodes = append(nodes, f.Ident.Flatten()...)
+	if f.Value != nil {
+		nodes = append(nodes, f.Value.Flatten()...)
+	}
+	return nodes
+}

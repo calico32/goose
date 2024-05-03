@@ -64,6 +64,12 @@ func readSource(specifier string, src any) ([]byte, error) {
 	}
 }
 
+type ParseError struct{}
+
+func (e *ParseError) Error() string {
+	return "parse error"
+}
+
 // ParseFile parses the source code of a single Goose source file and returns
 // the corresponding ast.File node. The source code may be provided via
 // the filename of the source file, or via the src parameter.
@@ -119,12 +125,7 @@ func ParseFile(fset *token.FileSet, specifier string, src any, trace io.Writer) 
 
 	// parse source
 	p.Init(fset, specifier, text, trace)
-	f = p.ParseFile()
-
-	if len(p.errors) > 0 {
-		p.errors.Sort()
-		err = p.errors.Err()
-	}
+	return p.ParseFile()
 
 	return
 }

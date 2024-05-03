@@ -112,7 +112,6 @@ const (
 	Export
 	As
 	Show
-	Use
 	Generator
 	Yield
 	To
@@ -235,7 +234,6 @@ var tokens = [...]string{
 	Export:    "export",
 	As:        "as",
 	Show:      "show",
-	Use:       "use",
 	Generator: "generator",
 	Yield:     "yield",
 	To:        "to",

@@ -1,0 +1,213 @@
+{{template "+docs_layout.html" .}}
+
+{{define "docs-title"}}Language Tour{{end}}
+
+{{define "docs-content"}}
+<section class="prose prose-invert prose-zinc">
+  <h1 class="text-3xl font-bold">Language Tour</h1>
+  <p>
+    Welcome to the goose language tour! This tour will introduce you to the basic concepts of goose and show you how to
+    write your first goose program. Let's get started!
+  </p>
+  <h2 class="text-2xl font-bold">Hello, World!</h2>
+  <p>
+    Let's start with the classic "Hello, World!" program. In goose, you can print text to the console using the
+    <a href="/docs/api/builtin/println"><code>println</code></a> function. Here's how you can write the "Hello, World!"
+    program in goose:
+  </p>
+  {{codeBlock `main.goose` `
+  <pre>
+    println("Hello, World!")
+  </pre>
+  `}}
+  <p>
+    To run the program, save the code to a file named <code>main.goose</code> and run the following command in your
+    terminal:
+  </p>
+  {{codeBlock `shell` `
+  <pre>
+    goose run main.goose
+  </pre>
+  `}}
+  <p>
+    You should see <code>Hello, World!</code> printed to the console. Congratulations! You've just written your first
+    goose program.
+  </p>
+  <h2 class="text-2xl font-bold">Variables</h2>
+  <p>
+    Variables are type-agnostic containers that store data. You can create variables in goose using the
+    <code>let</code>
+    keyword. Give the variable a name and assign it a value using the <code>=</code> operator. Later, you can use
+    the same <code>=</code> operator to change the value stored inside.
+  </p>
+  {{codeBlock `goose` `
+  <pre>
+    let message = "Hello, World!"
+    println(message)
+    message = "Goodbye, World!"
+    println(message)
+  </pre>
+  `}}
+  <p>
+    In this example, we create a variable named <code>message</code> and assign
+    it the value <code>"Hello, World!"</code>. We then print the value of the variable to the console. Next, we change
+    the value of the variable to <code>"Goodbye, World!"</code> and print it again.
+  </p>
+
+  <p>
+    You can also make final variables using the <code>const</code> keyword. Final variables cannot be reassigned once
+    they are initialized.
+  </p>
+
+  {{codeBlock `goose` `
+  <pre>
+    const message = "Hello, World!"
+    println(message)
+    message = "Goodbye, World!" // Cannot reassign a const variable // [!code error]
+  </pre>
+  `}}
+
+  <p>
+    For more information on variables and data types in goose, see the <a href="/docs/language/variables">Variables</a>
+    section of the language reference.
+  </p>
+
+  <h2 class="text-2xl font-bold">Comments</h2>
+  <p>
+    Comments are used to document your code and provide context to other developers (or your future self). In goose,
+    comments start with the <code>//</code> characters and continue until the end of the line.
+  </p>
+  {{codeBlock `goose` `
+  <pre>
+    // This is a single-line comment
+    let message = "Hello, World!" // This is another single-line comment
+  </pre>
+  `}}
+  <p>
+    You can also write multi-line comments using the <code>/*</code> and <code>*/</code> characters.
+  </p>
+  {{codeBlock `goose` `
+  <pre>
+    /*
+    This is a multi-line comment
+    that spans multiple lines
+    */
+  </pre>
+  `}}
+  <h2 class="text-2xl font-bold">Data types</h2>
+  <p>
+    goose comes with several built-in data types that you can use to store different kinds of values. Here are some of
+    the basic ones:
+  </p>
+  <ul>
+    <li><code>string</code>: A sequence of characters</li>
+    <li><code>int</code>: A whole number (arbitrary precision)</li>
+    <li><code>float</code>: A floating-point number</li>
+    <li><code>bool</code>: A boolean value (either <code>true</code> or <code>false</code>)</li>
+    <li><code>symbol</code>: A unique identifier</li>
+    <li><code>array</code>: An ordered list of values</li>
+    <li><code>object</code>: An unordered collection of keys and values</li>
+  </ul>
+  <p>
+    For more information on data types in goose, see the <a href="/docs/language/data-types">Data Types</a> section of
+    the language reference.
+  </p>
+  <h2 class="text-2xl font-bold">Functions</h2>
+  <p>
+    Functions are blocks of code that perform a specific task. You can define functions in goose using the
+    <code>fn</code> keyword. Give the function a name, a list of parameters, and a block of code to execute when the
+    function is called. Function blocks, like with other blocks in goose, are delimited by the <code>end</code> keyword.
+  </p>
+  {{codeBlock `goose` `
+  <pre>
+    fn greet(name)
+      println("Hello, $name!")
+    end
+
+    greet("Alice")
+    greet("Bob")
+  </pre>
+  `}}
+
+  <p>
+    For more information on functions in goose, see the <a href="/docs/language/functions">Functions</a> section of the
+    language reference.
+  </p>
+
+  <h2 class="text-2xl font-bold">Control flow</h2>
+  <p>
+    Control flow statements allow you to change the order in which your code is executed. goose supports several control
+    flow statements, including <code>if</code>, <code>else</code>, <code>while</code>, and <code>for</code>.
+  </p>
+  {{codeBlock `goose` `
+  <pre>
+    let x = 10
+
+    if x > 5
+      println("x is greater than 5")
+    else
+      println("x is less than or equal to 5")
+    end
+
+    let i = 0
+    repeat while i < 5
+      println(i)
+      i = i + 1
+    end
+
+    // repeats forever, until a break statement is encountered
+    repeat forever
+      println("Hello, World!")
+      break
+    end
+
+    // repeats 10 times!
+    repeat 10 times
+      println("Hello, World!")
+    end
+
+    for j in [1, 2, 3, 4, 5]
+      println(j)
+    end
+  </pre>
+  `}}
+
+  <p>
+    For more information on control flow in goose, see the <a href="/docs/language/control-flow">Control Flow</a>
+    section
+    of the language reference.
+  </p>
+
+  <h2 class="text-2xl font-bold">User input</h2>
+  <p>
+    goose has a rich standard library which includes functions for reading user input from the console. You can use
+    <code>read()</code> or <code>prompt()</code> from <code>std:readline</code> to read input from the user.
+  </p>
+  <p>
+    To use them, you'll need to import the <code>std:readline</code> module at the top of the file. Once you do, the
+    <code>readline</code> object will be available for you to use. Then, use a dot to access the <code>read()</code> or
+    <code>prompt()</code> functions.
+  </p>
+  {{codeBlock `goose` `
+  <pre>
+    import "std:readline"
+
+    let name = readline.prompt("What is your name? ")
+    println("Hello, $name!")
+  </pre>
+  `}}
+
+  <p>
+    There's plenty more in the standard library, so be sure to check out the <a href="/docs/api/std">API Reference</a>
+    for a full list of available modules and functions.
+  </p>
+
+  <h2 class="text-2xl font-bold">That's the basics</h2>
+
+  <p>
+    That's it for the goose language tour! You've learned the basics of goose and are ready to start writing your own
+    programs. If you have any questions or need help, feel free to ask in the <a href="/docs/community">community</a>.
+    Happy coding!
+  </p>
+</section>
+{{end}}

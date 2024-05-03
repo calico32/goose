@@ -1,8 +1,8 @@
 [build]
-  pre_cmd = ["go generate ./..."]
+  cmd = "go build -ldflags='-X main.mode=development' -o ./tmp/main ."
   exclude_dir = ["assets", "tmp", "vendor", "node_modules"]
   delay = 1
-  include_ext = ["go", "tpl", "tmpl", "html", "css"]
+  include_ext = ["go", "css", "html", "js", "json", "yml", "yaml", "toml"]
 
 [screen]
   clear_on_rebuild = true

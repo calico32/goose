@@ -1,0 +1,20 @@
+{{template "+layout.html" .}}
+
+{{define "title"}}404 | goose{{end}}
+
+{{define "main"}}
+<main class="p-4 flex items-center flex-col mt-8">
+  <i class="ph ph-magnifying-glass text-7xl"></i>
+  <h1 class="text-6xl font-bold mt-4 mb-8">404</h1>
+  <p class="text-lg mb-4">
+    The page you're looking for does not exist. Please check the URL and try again.
+  </p>
+  <div class="flex gap-2">
+    <a href="/" class="text-blue-500 hover:underline">Home</a>
+    •
+    <a href="/docs" class="text-blue-500 hover:underline">Documentation</a>
+    •
+    <a href="/docs/api" class="text-blue-500 hover:underline">API Reference</a>
+  </div>
+</main>
+{{end}}

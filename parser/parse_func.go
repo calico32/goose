@@ -57,7 +57,7 @@ func (p *Parser) parseParameters() (params *ast.FuncParamList) {
 
 	opening := p.expect(token.LParen)
 	var fields []*ast.FuncParam
-	for p.tok != token.RParen {
+	for p.tok != token.RParen && p.tok != token.EOF {
 		f := &ast.FuncParam{}
 		if p.tok == token.Ellipsis {
 			f.Ellipsis = p.pos

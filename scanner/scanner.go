@@ -277,6 +277,10 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, literal string) {
 		if s.ch == '"' {
 			s.next()
 			parts := s.scanString()
+			if len(parts) == 0 {
+				// string parsing has failed (error has already been reported)
+				return
+			}
 			pos, tok, literal = s.file.Pos(parts[0].offset), parts[0].tok, parts[0].literal
 			parts = parts[1:]
 			for _, part := range parts {

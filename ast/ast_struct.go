@@ -106,3 +106,45 @@ func (f *StructFieldList) NumFields() int { return len(f.List) }
 
 func (f *StructField) Pos() token.Pos { return f.Ident.Pos() }
 func (f *StructField) End() token.Pos { return f.Ident.End() }
+
+func (x *StructStmt) Flatten() []Node {
+	nodes := make([]Node, 0, len(x.Fields.List))
+	for _, field := range x.Fields.List {
+		nodes = append(nodes, field.Value.Flatten()...)
+	}
+	if x.Init != nil {
+		nodes = append(nodes, x.Init.Flatten()...)
+	}
+	return nodes
+}
+
+func (x *OperatorStmt) Flatten() []Node {
+	nodes := make([]Node, 0, len(x.Params.List)+len(x.Body)+1)
+
+	if x.Receiver != nil {
+		nodes = append(nodes, x.Receiver)
+	}
+	if x.Params != nil {
+		nodes = append(nodes, x.Params.Flatten()...)
+	}
+	for _, stmt := range x.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}
+
+func (x *PropertyExpr) Flatten() []Node        { return nil }
+func (x *BracketPropertyExpr) Flatten() []Node { return x.X.Flatten() }
+func (x *StructInit) Flatten() []Node {
+	nodes := make([]Node, 0, len(x.Body))
+	for _, stmt := range x.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}
+func (f *StructField) Flatten() []Node {
+	if f.Value != nil {
+		return f.Value.Flatten()
+	}
+	return nil
+}

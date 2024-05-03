@@ -33,7 +33,7 @@ func PrintExpr(x ast.Expr) string {
 				output.WriteString("}")
 			case *ast.StringLiteralInterpIdent:
 				output.WriteString("$")
-				output.WriteString(part.Name)
+				output.WriteString(part.Ident.Name)
 			case *ast.StringLiteralMiddle:
 				output.WriteString(part.Content)
 			}

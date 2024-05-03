@@ -29,7 +29,7 @@ func (p *Parser) parseStructFields() (params *ast.StructFieldList) {
 
 	opening := p.expect(token.LParen)
 	var fields []*ast.StructField
-	for p.tok != token.RParen {
+	for p.tok != token.RParen && p.tok != token.EOF {
 		ident := p.parseIdent()
 		f := &ast.StructField{Ident: ident}
 		if p.tok == token.Assign {

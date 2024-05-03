@@ -69,3 +69,19 @@ func (*NativeConst) nativeStmt()    {}
 func (*NativeStruct) nativeStmt()   {}
 func (*NativeFunc) nativeStmt()     {}
 func (*NativeOperator) nativeStmt() {}
+
+func (s *NativeConst) Flatten() []Node  { return nil }
+func (s *NativeStruct) Flatten() []Node { return nil }
+func (s *NativeFunc) Flatten() []Node {
+	if s.Receiver != nil {
+		return s.Receiver.Flatten()
+	}
+	return nil
+}
+func (s *NativeOperator) Flatten() []Node {
+	if s.Receiver != nil {
+		return s.Receiver.Flatten()
+	}
+	return nil
+}
+func (s *NativeExpr) Flatten() []Node { return nil }

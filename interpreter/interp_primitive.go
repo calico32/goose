@@ -93,7 +93,7 @@ func (i *interp) evalString(scope *Scope, expr *ast.StringLiteral) Value {
 		case *ast.StringLiteralMiddle:
 			value += expr.Content
 		case *ast.StringLiteralInterpIdent:
-			val := i.evalIdent(scope, &ast.Ident{Name: expr.Name})
+			val := i.evalIdent(scope, expr.Ident)
 			value += ToString(i, scope, val)
 		case *ast.StringLiteralInterpExpr:
 			val := i.evalExpr(scope, expr.Expr)

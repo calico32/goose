@@ -223,7 +223,7 @@ func (p *Parser) parseSimpleStmt() ast.Stmt {
 	return &ast.ExprStmt{X: x}
 }
 
-func (p *Parser) ParseFile() *ast.Module {
+func (p *Parser) ParseFile() (f *ast.Module, err error) {
 	if p.trace {
 		defer un(trace(p, "File"))
 	}
@@ -231,7 +231,7 @@ func (p *Parser) ParseFile() *ast.Module {
 	// Don't bother parsing the rest if we had errors scanning the first token.
 	// Likely not a Go source file at all.
 	if p.errors.Len() != 0 {
-		return nil
+		return nil, p.errors.Err()
 	}
 
 	var stmts []ast.Stmt
@@ -245,14 +245,23 @@ func (p *Parser) ParseFile() *ast.Module {
 		stmts = append(stmts, p.parseStmt())
 	}
 
-	f := &ast.Module{
+	f = &ast.Module{
 		Size:      p.file.Size(),
 		Stmts:     stmts,
 		Specifier: p.file.Specifier(),
 		Scheme:    p.file.Scheme(),
 	}
 
-	return f
+	if p.errors.Len() > 0 {
+		p.errors.Sort()
+		err = p.errors.Err()
+	}
+
+	return
+}
+
+func (p *Parser) Errors() scanner.ErrorList {
+	return p.errors
 }
 
 func (p *Parser) parseIdent() *ast.Ident {

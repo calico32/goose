@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -15,6 +16,7 @@ import (
 	"github.com/calico32/goose/lib"
 	"github.com/calico32/goose/parser"
 	"github.com/calico32/goose/token"
+	"go.lsp.dev/protocol"
 )
 
 type Validator struct {
@@ -35,30 +37,10 @@ type Validator struct {
 	stack    []ast.Node
 }
 
-type DiagnosticSeverity int
-
-func (s DiagnosticSeverity) String() string {
-	return Severity[s]
-}
-
-const (
-	Error DiagnosticSeverity = iota
-	Warning
-	Info
-	Hint
-)
-
-var Severity = [...]string{
-	"error",
-	"warning",
-	"info",
-	"hint",
-}
-
 type Diagnostic struct {
 	Module   *Module
 	Node     ast.Node
-	Severity DiagnosticSeverity
+	Severity protocol.DiagnosticSeverity
 	Message  string
 }
 
@@ -86,7 +68,7 @@ func (v *Validator) CurrentModule() *Module {
 	return v.moduleStack[len(v.moduleStack)-1]
 }
 
-func (v *Validator) Report(severity DiagnosticSeverity, node ast.Node, message string, parts ...any) {
+func (v *Validator) Report(severity protocol.DiagnosticSeverity, node ast.Node, message string, parts ...any) {
 	v.diagnostics = append(v.diagnostics, &Diagnostic{
 		Module:   v.CurrentModule(),
 		Node:     node,
@@ -96,7 +78,9 @@ func (v *Validator) Report(severity DiagnosticSeverity, node ast.Node, message s
 }
 
 func (v *Validator) Throw(msg string, parts ...any) {
-	panic(fmt.Errorf("%s: Validation error: %s", v.fset.Position(v.currentNode().Pos()), fmt.Sprintf(msg, parts...)))
+	// panic(fmt.Errorf("%s: Validation error: %s", v.fset.Position(v.currentNode().Pos()), fmt.Sprintf(msg, parts...)))
+	err := fmt.Sprintf("Validation error: %s", fmt.Sprintf(msg, parts...))
+	v.Report(protocol.DiagnosticSeverityError, v.currentNode(), "Internal error: %s", err)
 }
 
 func (v *Validator) currentNode() ast.Node {
@@ -206,11 +190,11 @@ func (v *Validator) checkModule(module *Module) {
 		result := v.checkStmt(module.Scope, stmt)
 		switch result.(type) {
 		case *Return:
-			v.Report(Error, stmt, "cannot return from top-level")
+			v.Report(protocol.DiagnosticSeverityError, stmt, "cannot return from top-level")
 		case *Break:
-			v.Report(Error, stmt, "cannot break from top-level")
+			v.Report(protocol.DiagnosticSeverityError, stmt, "cannot break from top-level")
 		case *Continue:
-			v.Report(Error, stmt, "cannot continue from top-level")
+			v.Report(protocol.DiagnosticSeverityError, stmt, "cannot continue from top-level")
 		}
 	}
 
@@ -261,7 +245,7 @@ func (v *Validator) checkStmt(scope *Scope, stmt ast.Stmt) StmtResult {
 	case *ast.IncDecStmt:
 		return v.checkIncDecStmt(scope, stmt)
 	default:
-		fmt.Printf("unhandled statement type: %T\n", stmt)
+		fmt.Fprintf(os.Stderr, "unhandled statement type: %T\n", stmt)
 		return &Void{}
 	}
 }
@@ -312,7 +296,7 @@ func (v *Validator) checkReturnStmt(scope *Scope, stmt *ast.ReturnStmt) StmtResu
 	}
 
 	if funcScope == nil {
-		v.Report(Error, stmt, "return outside of function")
+		v.Report(protocol.DiagnosticSeverityError, stmt, "return outside of function")
 	}
 
 	return &Return{}
@@ -346,7 +330,7 @@ func (v *Validator) checkBranchStmt(scope *Scope, stmt *ast.BranchStmt) StmtResu
 	}
 
 	if loopScope == nil {
-		v.Report(Error, stmt, "break/continue must be inside a loop")
+		v.Report(protocol.DiagnosticSeverityError, stmt, "break/continue must be inside a loop")
 	}
 
 	return &Break{}
@@ -356,14 +340,14 @@ func (v *Validator) checkStructStmt(scope *Scope, stmt *ast.StructStmt) StmtResu
 	defer pop(push(v, stmt))
 
 	if scope.IsDefinedInCurrentScope(stmt.Name.Name) {
-		v.Report(Error, stmt.Name, "cannot redefine struct %s", stmt.Name.Name)
+		v.Report(protocol.DiagnosticSeverityError, stmt.Name, "cannot redefine struct %s", stmt.Name.Name)
 	}
 
 	// validate parameters
 	fieldNames := map[string]bool{}
 	for _, param := range stmt.Fields.List {
 		if fieldNames[param.Ident.Name] {
-			v.Report(Error, param, "duplicate field %s", param.Ident.Name)
+			v.Report(protocol.DiagnosticSeverityError, param, "duplicate field %s", param.Ident.Name)
 
 		}
 		fieldNames[param.Ident.Name] = true
@@ -459,19 +443,19 @@ func (v *Validator) checkStmts(scope *Scope, body []ast.Stmt) StmtResult {
 func (v *Validator) checkExportDeclStmt(scope *Scope, stmt *ast.ExportDeclStmt) StmtResult {
 	defer pop(push(v, stmt))
 	if scope != scope.ModuleScope() {
-		v.Report(Error, stmt, "export declarations must be at the top level")
+		v.Report(protocol.DiagnosticSeverityError, stmt, "export declarations must be at the top level")
 	}
 
 	result := v.checkStmt(scope, stmt.Stmt)
 
 	if scope != scope.ModuleScope() {
-		v.Report(Error, stmt, "export declarations must be at the top level")
+		v.Report(protocol.DiagnosticSeverityError, stmt, "export declarations must be at the top level")
 	}
 
 	if decl, ok := result.(*Decl); !ok {
-		v.Report(Error, stmt, "declaration expected")
+		v.Report(protocol.DiagnosticSeverityError, stmt, "declaration expected")
 	} else if _, ok := scope.Module().Exports[decl.Name]; ok {
-		v.Report(Error, stmt, "duplicate export %s", decl.Name)
+		v.Report(protocol.DiagnosticSeverityError, stmt, "duplicate export %s", decl.Name)
 	} else {
 		scope.Module().Exports[decl.Name] = &Variable{
 			Source:   VariableSourceImport,
@@ -486,7 +470,7 @@ func (v *Validator) checkExportDeclStmt(scope *Scope, stmt *ast.ExportDeclStmt) 
 func (v *Validator) checkImportStmt(scope *Scope, stmt *ast.ImportStmt) StmtResult {
 	defer pop(push(v, stmt))
 	if scope != scope.ModuleScope() {
-		v.Report(Error, stmt, "import declarations must be at the top level")
+		v.Report(protocol.DiagnosticSeverityError, stmt, "import declarations must be at the top level")
 	}
 
 	return v.checkImportSpec(scope, stmt.Spec)
@@ -495,6 +479,9 @@ func (v *Validator) checkImportStmt(scope *Scope, stmt *ast.ImportStmt) StmtResu
 func (v *Validator) checkImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResult {
 	defer pop(push(v, spec))
 	name, module := v.loadModule(spec.ModuleSpecifier(), scope)
+	if module == nil {
+		return &Void{}
+	}
 
 	switch spec := spec.(type) {
 	case *ast.ModuleSpecShow:
@@ -503,7 +490,7 @@ func (v *Validator) checkImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResul
 			for name, value := range module.Exports {
 				scope.Set(name, value)
 				if scope.IsDefinedInCurrentScope(name) {
-					v.Report(Error, spec.Show, "name %s is already defined", name)
+					v.Report(protocol.DiagnosticSeverityError, spec.Show, "name %s is already defined", name)
 				}
 			}
 		} else {
@@ -535,7 +522,7 @@ func (v *Validator) checkImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResul
 					v.checkImportSpec(scope, spec)
 				case *ast.ShowFieldEllipsis:
 					if scope.IsDefinedInCurrentScope(field.Ident.Name) {
-						v.Report(Error, field.Ident, "name %s is already defined", field.Ident.Name)
+						v.Report(protocol.DiagnosticSeverityError, field.Ident, "name %s is already defined", field.Ident.Name)
 					}
 					// put all remaining exports into an object
 					object := NewComposite()
@@ -568,9 +555,9 @@ func (v *Validator) checkImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResul
 
 					if _, ok := module.Exports[exportedName]; !ok {
 						if module.Scope.IsDefinedInCurrentScope(exportedName) {
-							v.Report(Error, field, "value %s is defined locally in module %s but is not exported", exportedName, name)
+							v.Report(protocol.DiagnosticSeverityError, field, "value %s is defined locally in module %s but is not exported", exportedName, name)
 						} else {
-							v.Report(Error, field, "undefined export %s", exportedName)
+							v.Report(protocol.DiagnosticSeverityError, field, "undefined export %s", exportedName)
 						}
 					}
 
@@ -601,7 +588,7 @@ func (v *Validator) checkImportSpec(scope *Scope, spec ast.ModuleSpec) StmtResul
 		}
 
 		if scope.IsDefinedInCurrentScope(moduleName) {
-			v.Report(Error, spec, "name %s is already defined", moduleName)
+			v.Report(protocol.DiagnosticSeverityError, spec, "name %s is already defined", moduleName)
 		}
 
 		scope.Set(moduleName, &Variable{
@@ -643,7 +630,7 @@ func (v *Validator) loadModule(specifier string, scope *Scope) (string, *Module)
 	switch scheme {
 	case "file":
 		dir := strings.TrimPrefix(filepath.Dir(scope.Module().Specifier), "file:")
-		module = v.loadFileModule(name, dir)
+		module = v.loadFileModule(name, dir, false)
 	case "pkg":
 		module = v.loadPackageModule(scheme + ":" + name)
 	case "std":
@@ -654,7 +641,7 @@ func (v *Validator) loadModule(specifier string, scope *Scope) (string, *Module)
 	return scheme + ":" + name, module
 }
 
-func (v *Validator) loadFileModule(specifier string, dir string) *Module {
+func (v *Validator) loadFileModule(specifier string, dir string, isPackage bool) *Module {
 	if module, ok := v.modules[specifier]; ok {
 		return module
 	}
@@ -667,7 +654,27 @@ func (v *Validator) loadFileModule(specifier string, dir string) *Module {
 
 	info, err := os.Stat(path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			if isPackage {
+				s := strings.TrimPrefix(dir, v.gooseRoot+"/pkg/")
+				if specifier == "" {
+					v.Report(protocol.DiagnosticSeverityError, v.currentNode(), "package %s not found", s)
+				} else {
+					v.Report(protocol.DiagnosticSeverityError, v.currentNode(), "module %s not found in package %s", s+"/"+specifier, s)
+				}
+			} else {
+				v.Report(protocol.DiagnosticSeverityError, v.currentNode(), "module %s not found", specifier)
+			}
+			return nil
+		}
+
 		v.Throw(err.Error())
+		return nil
+	}
+
+	if info == nil {
+		v.Report(protocol.DiagnosticSeverityError, v.currentNode(), "module %s not found", specifier)
+		return nil
 	}
 
 	if info.IsDir() {
@@ -675,7 +682,7 @@ func (v *Validator) loadFileModule(specifier string, dir string) *Module {
 		_, err = os.Stat(newPath)
 		if err != nil {
 			if os.IsNotExist(err) {
-				v.Report(Error, v.currentNode(), "index.goose not found in directory %s", specifier)
+				v.Report(protocol.DiagnosticSeverityError, v.currentNode(), "index.goose not found in directory %s", specifier)
 				return nil
 			}
 
@@ -709,6 +716,7 @@ func (v *Validator) loadFileModule(specifier string, dir string) *Module {
 }
 
 func (v *Validator) loadPackageModule(specifier string) *Module {
+	specifier = strings.TrimPrefix(specifier, "pkg:")
 	slash := strings.Index(specifier, "/")
 	var name string
 	var path string
@@ -723,7 +731,7 @@ func (v *Validator) loadPackageModule(specifier string) *Module {
 
 	dir := filepath.Join(v.gooseRoot, "pkg", name)
 
-	return v.loadFileModule(path, dir)
+	return v.loadFileModule(path, dir, true)
 }
 
 func isFilePath(path string) bool {
@@ -746,7 +754,7 @@ func (v *Validator) loadStdModule(specifier string) *Module {
 		bindataPath = filepath.Join(bindataPath, "index.goose")
 		content, err = lib.Stdlib.ReadFile(bindataPath)
 		if err != nil {
-			v.Report(Error, v.currentNode(), "module %s or %s/index.goose not found", specifier, specifier)
+			v.Report(protocol.DiagnosticSeverityError, v.currentNode(), "module %s or %s/index.goose not found", specifier, specifier)
 			return nil
 		} else {
 			specifier += "/index.goose"
@@ -820,7 +828,7 @@ func (v *Validator) checkExpr(scope *Scope, expr ast.Expr) Value {
 	case *ast.NativeExpr:
 		return v.checkNativeExpr(scope, expr)
 	default:
-		fmt.Printf("unhandled expression type: %T\n", expr)
+		fmt.Fprintf(os.Stderr, "unhandled expression type: %T\n", expr)
 		return nil
 	}
 }
@@ -831,13 +839,13 @@ func (v *Validator) checkNativeExpr(scope *Scope, expr *ast.NativeExpr) Value {
 	module := scope.Module()
 	natives, ok := interpreter.Natives[module.Specifier]
 	if !ok {
-		v.Report(Error, expr, "module %s has no native components", module.Specifier)
+		v.Report(protocol.DiagnosticSeverityError, expr, "module %s has no native components", module.Specifier)
 		return nil
 	}
 
 	_, ok = natives[expr.Id]
 	if !ok {
-		v.Report(Error, expr, "native %s not found", expr.Id)
+		v.Report(protocol.DiagnosticSeverityError, expr, "native %s not found", expr.Id)
 		return nil
 	}
 
@@ -940,7 +948,7 @@ func (v *Validator) checkSliceExpr(scope *Scope, expr *ast.SliceExpr) Value {
 	}
 
 	if expr.Low == nil && expr.High == nil {
-		v.Report(Error, expr, "slice expression must have at least one bound")
+		v.Report(protocol.DiagnosticSeverityError, expr, "slice expression must have at least one bound")
 	}
 
 	return nil
@@ -1008,7 +1016,7 @@ func (v *Validator) checkLiteral(_ *Scope, expr *ast.Literal) Value {
 		val := new(big.Int)
 		val, ok := val.SetString(strVal, base)
 		if !ok {
-			v.Report(Error, expr, "failed to parse integer")
+			v.Report(protocol.DiagnosticSeverityError, expr, "failed to parse integer")
 		}
 
 		return Wrap(val)
@@ -1016,7 +1024,7 @@ func (v *Validator) checkLiteral(_ *Scope, expr *ast.Literal) Value {
 	case token.Float:
 		val, err := strconv.ParseFloat(expr.Value, 64)
 		if err != nil {
-			v.Report(Error, expr, err.Error())
+			v.Report(protocol.DiagnosticSeverityError, expr, err.Error())
 			return nil
 		}
 
@@ -1032,7 +1040,7 @@ func (v *Validator) checkLiteral(_ *Scope, expr *ast.Literal) Value {
 		return FalseValue
 
 	default:
-		v.Report(Error, expr, "unexpected literal kind %s", expr.Kind)
+		v.Report(protocol.DiagnosticSeverityError, expr, "unexpected literal kind %s", expr.Kind)
 		return nil
 	}
 }
@@ -1048,7 +1056,7 @@ func (v *Validator) checkStringLiteral(scope *Scope, lit *ast.StringLiteral) Val
 			v.checkExpr(scope, part.Expr)
 			continue
 		case *ast.StringLiteralInterpIdent:
-			v.checkIdent(scope, &ast.Ident{Name: part.Name, NamePos: part.Pos()})
+			v.checkIdent(scope, part.Ident)
 			continue
 		case *ast.StringLiteralMiddle:
 			// TODO: check for escape sequences
@@ -1068,7 +1076,7 @@ func (v *Validator) checkIdent(scope *Scope, ident *ast.Ident) Value {
 	}
 
 	if !scope.IsDefined(ident.Name) {
-		v.Report(Error, ident, "%s is not defined", ident.Name)
+		v.Report(protocol.DiagnosticSeverityError, ident, "%s is not defined", ident.Name)
 	}
 	return nil
 }
@@ -1077,11 +1085,11 @@ func (v *Validator) checkConstStmt(scope *Scope, stmt *ast.ConstStmt) StmtResult
 	defer pop(push(v, stmt))
 
 	if stmt.Ident.Name == "_" {
-		v.Report(Error, stmt.Ident, "cannot declare _")
+		v.Report(protocol.DiagnosticSeverityError, stmt.Ident, "cannot declare _")
 	}
 
 	if scope.IsDefinedInCurrentScope(stmt.Ident.Name) {
-		v.Report(Error, stmt.Ident, "cannot redefine variable %s", stmt.Ident.Name)
+		v.Report(protocol.DiagnosticSeverityError, stmt.Ident, "cannot redefine variable %s", stmt.Ident.Name)
 	}
 
 	value := v.checkExpr(scope, stmt.Value)
@@ -1101,11 +1109,11 @@ func (v *Validator) checkLetStmt(scope *Scope, stmt *ast.LetStmt) StmtResult {
 	defer pop(push(v, stmt))
 
 	if stmt.Ident.Name == "_" {
-		v.Report(Error, stmt.Ident, "cannot declare _")
+		v.Report(protocol.DiagnosticSeverityError, stmt.Ident, "cannot declare _")
 	}
 
 	if scope.IsDefinedInCurrentScope(stmt.Ident.Name) {
-		v.Report(Error, stmt.Ident, "cannot redefine variable %s", stmt.Ident.Name)
+		v.Report(protocol.DiagnosticSeverityError, stmt.Ident, "cannot redefine variable %s", stmt.Ident.Name)
 	}
 
 	var value Value
@@ -1139,7 +1147,7 @@ func (v *Validator) checkAssignStmt(scope *Scope, stmt *ast.AssignStmt) StmtResu
 		if ident[0] == '#' {
 			x := scope.Get("this")
 			if x == nil {
-				v.Report(Error, lhs, "invalid property assignment: 'this' is not defined")
+				v.Report(protocol.DiagnosticSeverityError, lhs, "invalid property assignment: 'this' is not defined")
 			}
 			v.checkExpr(scope, stmt.Rhs)
 
@@ -1148,15 +1156,15 @@ func (v *Validator) checkAssignStmt(scope *Scope, stmt *ast.AssignStmt) StmtResu
 
 		existing := scope.Get(ident)
 		if existing == nil {
-			v.Report(Error, lhs, "%s is not defined", ident)
+			v.Report(protocol.DiagnosticSeverityError, lhs, "%s is not defined", ident)
 		} else if existing.Constant {
-			v.Report(Error, lhs, "cannot assign to constant %s", ident)
+			v.Report(protocol.DiagnosticSeverityError, lhs, "cannot assign to constant %s", ident)
 		}
 
 		// op := GetOperator(existing.Value, stmt.Tok)
 		// if op == nil {
 		// 	node := &ast.PosRange{From: stmt.TokPos, To: stmt.TokPos + token.Pos(len(stmt.Tok.String()))}
-		// 	v.Report(Error, node, "operator %s not defined for type %s", stmt.Tok, existing.Value.Type())
+		// 	v.Report(protocol.DiagnosticSeverityError, node, "operator %s not defined for type %s", stmt.Tok, existing.Value.Type())
 		// }
 		v.checkExpr(scope, stmt.Rhs)
 		return &Void{}
@@ -1179,12 +1187,12 @@ func (v *Validator) checkPropertyKey(expr ast.Expr) {
 		// valid key
 	case *ast.Ident:
 		if expr.Name == "true" || expr.Name == "false" || expr.Name == "null" {
-			v.Report(Error, expr, "invalid key %s", expr.Name)
+			v.Report(protocol.DiagnosticSeverityError, expr, "invalid key %s", expr.Name)
 		}
 		// otherwise, we have no way of knowing if this is a valid key
 	case *ast.CompositeLiteral, *ast.FrozenExpr, *ast.BindExpr, *ast.ArrayLiteral, *ast.DoExpr, *ast.FuncExpr, *ast.NativeExpr, *ast.ArrayInitializer, *ast.EllipsisExpr, *ast.GeneratorExpr:
 		// TODO: exhaustive list of invalid keys
-		v.Report(Error, expr, "invalid key %s", expr)
+		v.Report(protocol.DiagnosticSeverityError, expr, "invalid key %s", expr)
 	default:
 		// we have no way of knowing if this is a valid key
 	}
@@ -1194,7 +1202,7 @@ func (v *Validator) checkFrozenExpr(scope *Scope, expr *ast.FrozenExpr) Value {
 	defer pop(push(v, expr))
 
 	if _, ok := expr.X.(*ast.CompositeLiteral); !ok {
-		v.Report(Error, expr, "frozen keyword can only be used with composite literals")
+		v.Report(protocol.DiagnosticSeverityError, expr, "frozen keyword can only be used with composite literals")
 	}
 
 	return v.checkExpr(scope, expr.X)
@@ -1217,7 +1225,7 @@ func (v *Validator) checkNativeStmt(scope *Scope, stmt ast.NativeStmt) StmtResul
 	case *ast.NativeOperator:
 		name = "O/" + stmt.Receiver.Name + "." + stmt.Tok.String()
 	default:
-		v.Report(Error, stmt, "invalid native stmt type %T", stmt)
+		v.Report(protocol.DiagnosticSeverityError, stmt, "invalid native stmt type %T", stmt)
 	}
 
 	specifier := scope.Module().Specifier
@@ -1229,10 +1237,10 @@ func (v *Validator) checkNativeStmt(scope *Scope, stmt ast.NativeStmt) StmtResul
 				// TODO: limit to current module
 				constructor := scope.Get(fn.Receiver.Name)
 				if constructor == nil {
-					v.Report(Error, stmt, "unknown type %s", fn.Receiver.Name)
+					v.Report(protocol.DiagnosticSeverityError, stmt, "unknown type %s", fn.Receiver.Name)
 					return nil
 				} else if val, ok := constructor.Value.(*Func); !ok || val.NewableProto == nil {
-					v.Report(Error, stmt, "%s cannot have receiver functions", fn.Receiver.Name)
+					v.Report(protocol.DiagnosticSeverityError, stmt, "%s cannot have receiver functions", fn.Receiver.Name)
 					return nil
 				}
 
@@ -1243,7 +1251,7 @@ func (v *Validator) checkNativeStmt(scope *Scope, stmt ast.NativeStmt) StmtResul
 				}
 
 				if _, ok := proto.Properties[PKString][fn.Name.Name]; ok {
-					v.Report(Error, stmt, "duplicate receiver function %s", fn.Name.Name)
+					v.Report(protocol.DiagnosticSeverityError, stmt, "duplicate receiver function %s", fn.Name.Name)
 				}
 
 				proto.Properties[PKString][fn.Name.Name] = value
@@ -1260,7 +1268,7 @@ func (v *Validator) checkNativeStmt(scope *Scope, stmt ast.NativeStmt) StmtResul
 		}
 	}
 
-	v.Report(Error, stmt, "native %s not found", name)
+	v.Report(protocol.DiagnosticSeverityError, stmt, "native %s not found", name)
 	return nil
 }
 
@@ -1269,7 +1277,7 @@ func (v *Validator) checkFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
 
 	if expr.Name != nil && expr.Receiver == nil {
 		if scope.IsDefinedInCurrentScope(expr.Name.Name) {
-			v.Report(Error, expr.Name, "cannot redefine function %s", expr.Name.Name)
+			v.Report(protocol.DiagnosticSeverityError, expr.Name, "cannot redefine function %s", expr.Name.Name)
 		}
 	}
 
@@ -1277,7 +1285,7 @@ func (v *Validator) checkFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
 	paramNames := map[string]bool{}
 	for _, param := range expr.Params.List {
 		if paramNames[param.Ident.Name] {
-			v.Report(Error, param.Ident, "duplicate parameter %s", param.Ident.Name)
+			v.Report(protocol.DiagnosticSeverityError, param.Ident, "duplicate parameter %s", param.Ident.Name)
 		}
 		paramNames[param.Ident.Name] = true
 	}
@@ -1322,10 +1330,10 @@ func (v *Validator) checkFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
 			exit := false
 
 			if constructor == nil {
-				v.Report(Error, expr, "unknown type %s", expr.Receiver.Name)
+				v.Report(protocol.DiagnosticSeverityError, expr, "unknown type %s", expr.Receiver.Name)
 				exit = true
 			} else if val, ok := constructor.Value.(*Func); !ok || val == nil || val.NewableProto == nil {
-				v.Report(Error, expr, "%s cannot have receiver functions", expr.Receiver.Name)
+				v.Report(protocol.DiagnosticSeverityError, expr, "%s cannot have receiver functions", expr.Receiver.Name)
 				exit = true
 			}
 
@@ -1340,7 +1348,7 @@ func (v *Validator) checkFuncExpr(scope *Scope, expr *ast.FuncExpr) Value {
 			}
 
 			if _, ok := proto.Properties[PKString][expr.Name.Name]; ok {
-				v.Report(Error, expr.Name, "duplicate receiver function %s", expr.Name.Name)
+				v.Report(protocol.DiagnosticSeverityError, expr.Name, "duplicate receiver function %s", expr.Name.Name)
 			}
 
 			proto.Properties[PKString][expr.Name.Name] = value

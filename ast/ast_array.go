@@ -37,3 +37,26 @@ func (x *SliceExpr) End() token.Pos        { return x.RBrack + 1 }
 func (*ArrayLiteral) exprNode()     {}
 func (*ArrayInitializer) exprNode() {}
 func (*SliceExpr) exprNode()        {}
+
+func (x *ArrayLiteral) Flatten() []Node {
+	nodes := make([]Node, 0, len(x.List))
+	for _, expr := range x.List {
+		nodes = append(nodes, expr.Flatten()...)
+	}
+	return nodes
+}
+
+func (x *ArrayInitializer) Flatten() []Node {
+	nodes := make([]Node, 0, 3)
+	nodes = append(nodes, x.Value.Flatten()...)
+	nodes = append(nodes, x.Count.Flatten()...)
+	return nodes
+}
+
+func (x *SliceExpr) Flatten() []Node {
+	nodes := make([]Node, 0, 3)
+	nodes = append(nodes, x.X)
+	nodes = append(nodes, x.Low)
+	nodes = append(nodes, x.High)
+	return nodes
+}

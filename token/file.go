@@ -2,6 +2,7 @@ package token
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 )
 
@@ -49,6 +50,12 @@ func (f *File) Base() int {
 // Size returns the size of file f as registered with AddFile.
 func (f *File) Size() int {
 	return f.size
+}
+
+// Lines returns the line offsets for the given file.
+func (f *File) Lines() []int {
+	defer un(lock(&f.mutex))
+	return slices.Clone(f.lines)
 }
 
 // Pos returns the Pos value for the given file offset;
@@ -177,4 +184,26 @@ func searchInts(a []int, x int) int {
 		}
 	}
 	return i - 1
+}
+
+// GetPosition returns the Position value for the specified file, line, and column.
+func (f *File) GetPosition(line, column int) (pos Position) {
+	if line < 1 {
+		panic(fmt.Sprintf("invalid line number %d (should be >= 1)", line))
+	}
+	if column < 1 {
+		panic(fmt.Sprintf("invalid column number %d (should be >= 1)", column))
+	}
+
+	defer un(lock(&f.mutex))
+	if line > len(f.lines) {
+		panic(fmt.Sprintf("invalid line number %d (should be <= %d)", line, len(f.lines)))
+	}
+	offset := f.lines[line-1] + column - 1
+	if offset > f.size {
+		panic(fmt.Sprintf("invalid column number %d (should be <= %d)", column, f.size-f.lines[line-1]+1))
+	}
+	pos.Offset = offset
+	pos.Filename, pos.Line, pos.Column = f.unpack(offset)
+	return
 }

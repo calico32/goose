@@ -1,4 +1,4 @@
-{{template "docs_layout.html" .}}
+{{template "+docs_layout.html" .}}
 
 {{define "docs-title"}}Standard Library{{end}}
 
@@ -11,7 +11,7 @@
     distribution and is always available for use in your programs.
   </p>
   <h2 class="text-xl font-semibold">Package Index</h2>
-  <ul class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-4">
+  <ul class="grid md:grid-cols-2 grid-cols-1 gap-4">
     {{range .StandardLibrary}}
     <li>
       <a href="/docs/api/std/{{.Name}}" class="card">

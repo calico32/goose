@@ -1,5 +1,8 @@
 {
+  "exclude": ["dist", "node_modules"],
+  "include": ["src"],
   "compilerOptions": {
+    "strict": true,
     "skipLibCheck": true
   }
 }

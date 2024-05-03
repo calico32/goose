@@ -11,6 +11,7 @@ type (
 	}
 
 	MatchArm interface {
+		Node
 		matchArm()
 	}
 
@@ -112,3 +113,34 @@ func (x *PatternTuple) patternExpr()     {}
 func (x *PatternRange) patternExpr()     {}
 func (x *PatternType) patternExpr()      {}
 func (x *PatternComposite) patternExpr() {}
+
+func (x *MatchExpr) Flatten() []Node {
+	nodes := []Node{x.Expr}
+	for _, clause := range x.Clauses {
+		nodes = append(nodes, clause.Flatten()...)
+	}
+	return nodes
+}
+
+func (x *MatchElse) Flatten() []Node      { return x.Expr.Flatten() }
+func (x *MatchPattern) Flatten() []Node   { return append(x.Pattern.Flatten(), x.Expr.Flatten()...) }
+func (x *PatternNormal) Flatten() []Node  { return x.X.Flatten() }
+func (x *PatternBinding) Flatten() []Node { return nil }
+func (x *PatternParen) Flatten() []Node   { return x.X.Flatten() }
+func (x *PatternTuple) Flatten() []Node {
+	nodes := make([]Node, 0, len(x.List))
+	for _, elem := range x.List {
+		nodes = append(nodes, elem.Flatten()...)
+	}
+	return nodes
+}
+func (x *PatternRange) Flatten() []Node { return append(x.Start.Flatten(), x.Stop.Flatten()...) }
+func (x *PatternType) Flatten() []Node  { return x.Ident.Flatten() }
+func (x *PatternComposite) Flatten() []Node {
+	nodes := make([]Node, 0, len(x.Fields))
+	for _, field := range x.Fields {
+		nodes = append(nodes, field.Key.Flatten()...)
+		nodes = append(nodes, field.Value.Flatten()...)
+	}
+	return nodes
+}

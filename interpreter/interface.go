@@ -72,7 +72,7 @@ func EvalExpr(expr ast.Expr, scope *Scope) (ret Value, err error) {
 				},
 			},
 		},
-		Scope:   scope,
+		Scope:   scope.Reparent(i.global),
 		Exports: make(map[string]*Variable),
 	}
 

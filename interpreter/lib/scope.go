@@ -214,3 +214,27 @@ func (s *Scope) IsDefinedInCurrentScope(name string) bool {
 	}
 	return false
 }
+
+func (s *Scope) Clone() *Scope {
+	parent := s.parent
+	if parent != nil {
+		parent = parent.Clone()
+	}
+	return &Scope{
+		owner:  s.owner,
+		idents: s.idents,
+		module: s.module,
+		parent: parent,
+	}
+}
+
+func (s *Scope) Reparent(parent *Scope) *Scope {
+	clone := s.Clone()
+	// put parent at the top of the scope hierarchy
+	current := clone
+	for current.parent != nil {
+		current = current.parent
+	}
+	current.parent = parent
+	return clone
+}

@@ -1,29 +1,93 @@
-{{template "docs_layout.html" .}}
+{{template "+docs_layout.html" .}}
 
 {{define "docs-title"}}Documentation{{end}}
 
 {{define "docs-content"}}
-<section class="space-y-8">
-  <h1 class="text-3xl font-bold">Documentation</h1>
+<section class="prose prose-invert prose-zinc">
+  <h1 class="text-3xl font-bold ">goose Documentation</h1>
   <p>
-    Welcome to the goose documentation. This documentation is a work in progress
-    and will be updated as the language and standard library evolve.
+    goose is a minimal programming language built on top of <a href="https://go.dev" class="text-blue-400">Go</a>. It is
+    designed for simplicity and ease of use.
   </p>
-
-  <h2 class="text-xl font-semibold">Table of Contents</h2>
-  <ul class="grid grid-cols-1 gap-4">
-    <li>
-      <a href="/docs/language" class="card">
-        <h3 class="text-xl font-bold">Language Documentation</h3>
-        <p>Learn about the goose programming language.</p>
+  <p>
+    For a quick overview of the language, take the <a class="text-blue-400" href="/docs/language/tour">goose language
+      tour</a>.
+  </p>
+  <p>
+    goose is dynamically typed, which means that you don't have to specify the type of a variable when you declare it.
+    The type of a variable is determined at runtime based on the value that is assigned to it. This makes goose a very
+    flexible language, but it also means that you have to be careful when working with variables to avoid type errors.
+  </p>
+  <p>
+    goose is an interpreted language, which means that code is executed line by line without prior compilation. There
+    are no special optimizations or pre-processing. While this makes goose slower than compiled languages at scale, for
+    small to medium-sized projects, its speed is more than enough thanks to fast startup times and low memory usage.
+  </p>
+</section>
+<section class="mt-4">
+  <h2 class="text-2xl font-bold mt-4">Language Basics</h2>
+  <ul class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-4 mt-4">
+    <li class="lg:col-span-3 md:col-span-2">
+      <a href="/docs/language-tour" class="card important">
+        <h3 class="text-xl font-bold">Language Tour</h3>
+        <p>New to goose? Start here to learn the basics.</p>
       </a>
     </li>
     <li>
-      <a href="/docs/api" class="card">
-        <h3 class="text-xl font-bold">API Reference</h3>
-        <p>Explore the goose standard library.</p>
+      <a href="/docs/types" class="card">
+        <h3 class="text-xl font-bold">Types</h3>
+        <p>A guide to the built-in types in goose.</p>
+      </a>
+    </li>
+    <li>
+      <a href="/docs/variables" class="card">
+        <h3 class="text-xl font-bold">Variables</h3>
+        <p>Learn variables, lexical scoping, and closures.</p>
+      </a>
+    </li>
+    <li>
+      <a href="/docs/control-flow" class="card">
+        <h3 class="text-xl font-bold">Control Flow</h3>
+        <p>Loops, conditionals, error handling, and more.</p>
+      </a>
+    </li>
+    <li>
+      <a href="/docs/functions" class="card">
+        <h3 class="text-xl font-bold">Functions</h3>
+        <p>Learn about functions, closures, and recursion.</p>
+      </a>
+    </li>
+    <li>
+      <a href="/docs/custom-types" class="card">
+        <h3 class="text-xl font-bold">Custom Types</h3>
+        <p>Learn how to define and use custom types in goose.</p>
+      </a>
+    </li>
+    <li>
+      <a href="/docs/modules" class="card">
+        <h3 class="text-xl font-bold">Modules & Packages</h3>
+        <p>Export your code and import other modules into your program.</p>
+      </a>
+    </li>
+    <li>
+      <a href="/docs/introspection" class="card">
+        <h3 class="text-xl font-bold">Introspection</h3>
+        <p>Learn how to inspect and manipulate code at runtime.</p>
       </a>
     </li>
   </ul>
+
+
+  <h2 class="text-2xl font-bold mt-4">goose In-Depth</h2>
+  <ul class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-4 mt-4">
+    <li>
+      <a href="/docs/syntax" class="card">
+        <h3 class="text-xl font-bold">Syntax</h3>
+        <p>A complete reference for the syntax of goose code.</p>
+      </a>
+    </li>
+  </ul>
+
 </section>
+
 {{end}}

@@ -31,7 +31,7 @@ type (
 
 	StringLiteralInterpIdent struct {
 		InterpPos token.Pos
-		Name      string
+		Ident     *Ident
 	}
 
 	StringLiteralInterpExpr struct {
@@ -70,7 +70,7 @@ func (x *StringLiteral) End() token.Pos       { return x.StringEnd.Quote + 1 }
 func (x *StringLiteralStart) End() token.Pos  { return token.Pos(int(x.Quote) + len(x.Content)) }
 func (x *StringLiteralMiddle) End() token.Pos { return token.Pos(int(x.StartPos) + len(x.Content)) }
 func (x *StringLiteralInterpIdent) End() token.Pos {
-	return token.Pos(int(x.InterpPos)+len(x.Name)) + 1
+	return token.Pos(int(x.InterpPos)+len(x.Ident.Name)) + 1
 }
 func (x *StringLiteralInterpExpr) End() token.Pos { return x.Expr.End() }
 func (x *StringLiteralEnd) End() token.Pos        { return x.Quote + 1 }
@@ -94,7 +94,7 @@ func (s *StringLiteral) String() string {
 			sb.WriteString(p.Content)
 		case *StringLiteralInterpIdent:
 			sb.WriteString("$")
-			sb.WriteString(p.Name)
+			sb.WriteString(p.Ident.Name)
 		case *StringLiteralInterpExpr:
 			sb.WriteString("${expr}")
 		}
@@ -102,3 +102,18 @@ func (s *StringLiteral) String() string {
 	sb.WriteString(s.StringEnd.Content)
 	return sb.String()
 }
+
+func (s *Literal) Flatten() []Node { return nil }
+func (s *StringLiteral) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Parts))
+	for _, part := range s.Parts {
+		nodes = append(nodes, part.Flatten()...)
+	}
+	return nodes
+}
+func (s *StringLiteralStart) Flatten() []Node       { return nil }
+func (s *StringLiteralMiddle) Flatten() []Node      { return nil }
+func (s *StringLiteralInterpIdent) Flatten() []Node { return s.Ident.Flatten() }
+func (s *StringLiteralInterpExpr) Flatten() []Node  { return s.Expr.Flatten() }
+func (s *StringLiteralEnd) Flatten() []Node         { return nil }
+func (s *SymbolStmt) Flatten() []Node               { return nil }

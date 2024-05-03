@@ -1,19 +1,18 @@
 package main
 
 import (
-	"embed"
+	"fmt"
 	"html/template"
 	"io"
+	"io/fs"
 	"net/http"
+	"os"
 	"regexp"
 	"slices"
 
 	"github.com/calico32/goose/lib/types"
 	"github.com/labstack/echo/v4"
 )
-
-//go:embed all:views/*
-var tmplFS embed.FS
 
 type Template struct {
 	templates *template.Template
@@ -40,7 +39,9 @@ func (t *TemplateContext) CloneFor(c echo.Context) *TemplateContext {
 }
 
 func createRenderer() *Template {
-	funcMap := template.FuncMap{}
+	funcMap := template.FuncMap{
+		"codeBlock": codeBlock,
+	}
 
 	templates := template.New("").Funcs(funcMap)
 	return &Template{
@@ -60,19 +61,30 @@ func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Con
 }
 
 func loadTemplateChain(tmpl *template.Template, name string, chain []string) (*template.Template, []string, error) {
-	// look for {{template "$1" .}} in the file
+	var fs fs.FS
+	if mode == "release" {
+		fs = tmplFS
+	} else {
+		fs = os.DirFS(".")
+	}
 
-	// read the file
-	f, err := tmplFS.ReadFile("views/" + name)
+	file, err := fs.Open("views/" + name)
+	if err != nil {
+		return nil, chain, err
+	}
+	defer file.Close()
+
+	f, err := io.ReadAll(file)
 	if err != nil {
 		return nil, chain, err
 	}
 
 	// check if the file has template directives
-	pattern := regexp.MustCompile(`{{template "([^\"]+)" .}}`)
-	matches := pattern.FindStringSubmatch(string(f))
+	pattern := regexp.MustCompile(`{{template "([^\"]+)"`)
+	matches := pattern.FindAllStringSubmatch(string(f), -1)
 	if len(matches) == 0 {
-		tmpl, err := tmpl.ParseFS(tmplFS, "views/"+name)
+		fmt.Printf("Loading %s\n", name)
+		tmpl, err := tmpl.ParseFS(fs, "views/"+name)
 		chain = append(chain, name)
 		if err != nil {
 			return nil, chain, err
@@ -81,18 +93,20 @@ func loadTemplateChain(tmpl *template.Template, name string, chain []string) (*t
 	}
 
 	// load chains
-	for _, match := range matches[1:] {
-		if slices.Contains(chain, match) {
-			return nil, chain, echo.NewHTTPError(http.StatusInternalServerError, "Circular template dependency")
-		}
-		tmpl, chain, err = loadTemplateChain(tmpl, match, chain)
-		if err != nil {
-			return nil, chain, err
+	for _, m := range matches {
+		for _, match := range m[1:] {
+			if slices.Contains(chain, match) {
+				return nil, chain, echo.NewHTTPError(http.StatusInternalServerError, "Circular template dependency")
+			}
+			tmpl, chain, err = loadTemplateChain(tmpl, match, chain)
+			if err != nil {
+				return nil, chain, err
+			}
 		}
 	}
 
 	// load the current template
-	tmpl, err = tmpl.ParseFS(tmplFS, "views/"+name)
+	tmpl, err = tmpl.ParseFS(fs, "views/"+name)
 	chain = append(chain, name)
 	if err != nil {
 		return nil, chain, err
@@ -113,9 +127,13 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 			message = http.StatusText(code)
 		}
 	}
-	c.Logger().Error(err)
-	c.Render(code, "_error.html", map[string]any{
-		"Code":    code,
-		"Message": message,
-	})
+	if code == 404 {
+		c.Render(code, "+error_404.html", nil)
+	} else {
+		c.Logger().Error(err)
+		c.Render(code, "+error.html", map[string]any{
+			"Code":    code,
+			"Message": message,
+		})
+	}
 }

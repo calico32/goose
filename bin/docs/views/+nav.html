@@ -1,0 +1,86 @@
+<nav class="fixed top-0 left-0 right-0 bg-zinc-900 z-20" id="nav">
+  <div class="flex items-center justify-center wip-banner w-full leading-5 py-2 px-4">
+    The goose documentation is a work in progress. Some pages may be incomplete or missing.
+  </div>
+  <div id="nav-wrapper">
+    <div class="flex items-center h-12 px-4">
+      <div class="flex items-center gap-3">
+        <div id="menu-icon" class="h-full">
+          <i id="menu-icon-open" class="ph ph-text-outdent text-white text-2xl block cursor-pointer"></i>
+          <i id="menu-icon-close" class="ph ph-text-indent text-white text-2xl cursor-pointer hidden"></i>
+        </div>
+        <a href="/" class="text-lg font-semibold contents">
+          <img src="/static/img/goose.png" alt="goose" class="h-7 w-7 inline-block" />
+          <h1 class="-mt-1">goose</h1>
+        </a>
+      </div>
+
+      <div class="flex-1"></div>
+
+      <ul class="flex items-center gap-4 w-max">
+        <li class="w-max">
+          <a href="/docs" class="text-primary-200">Documentation</a>
+        </li>
+        <li class="w-max">
+          <a href="/docs/api" class="text-primary-200">API Reference</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const path = window.location.pathname
+    const menuIcon = document.getElementById("menu-icon")
+    const menuIconOpen = document.getElementById("menu-icon-open")
+    const menuIconClose = document.getElementById("menu-icon-close")
+    if (!path.startsWith("/docs")) {
+      menuIcon.style.display = "none"
+      return
+    }
+
+    const docsNav = document.getElementById("docs-nav").parentElement
+    const docsMain = document.getElementById("docs-main")
+
+    const openNav = () => {
+      docsNav.style.display = "block"
+      menuIconOpen.style.display = "block"
+      menuIconClose.style.display = "none"
+    }
+
+    const closeNav = () => {
+      docsNav.style.display = "none"
+      menuIconOpen.style.display = "none"
+      menuIconClose.style.display = "block"
+    }
+
+    if (localStorage.getItem("docs-nav-display") === "none") {
+      closeNav()
+    } else {
+      openNav()
+    }
+
+    let prevWidth = document.documentElement.clientWidth
+    const observer = new ResizeObserver((entries) => {
+      const newWidth = entries[0].contentRect.width
+      if (newWidth < 768 && prevWidth >= 768) {
+        closeNav()
+      } else if (newWidth >= 768 && prevWidth < 768) {
+        openNav()
+      }
+    })
+
+    observer.observe(document.documentElement)
+
+    menuIcon.addEventListener("click", () => {
+      if (docsNav.style.display === "none") {
+        openNav()
+      } else {
+        closeNav()
+      }
+
+      localStorage.setItem("docs-nav-display", docsNav.style.display)
+    })
+  });
+</script>

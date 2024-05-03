@@ -157,7 +157,7 @@ func (p *NodePrinter) Print(node Node) {
 				p.write("}")
 			case *StringLiteralInterpIdent:
 				p.write("$")
-				p.write(part.Name)
+				p.write(part.Ident.Name)
 			}
 		}
 		p.write(n.StringEnd.Content)

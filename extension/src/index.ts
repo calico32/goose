@@ -1,16 +1,23 @@
-import { ExtensionContext } from 'vscode'
+import { ExtensionContext } from "vscode"
 import {
-  Executable,
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
   Trace,
-} from 'vscode-languageclient/node'
+  TransportKind,
+} from "vscode-languageclient/node"
 
 export function activate(context: ExtensionContext) {
-  const serverExecutable: Executable = {
-    command: 'go',
-    args: ['run', '/home/calico32/goose/bin/lsp/main.go'],
+  let serverExecutable = {
+    command: context.extensionPath + "/dist/goose-lsp",
+    transport: TransportKind.stdio,
+  }
+
+  try {
+    const config = require("./config.json")
+    serverExecutable = config
+  } catch {
+    // ignore
   }
 
   const serverOptions: ServerOptions = {
@@ -19,10 +26,15 @@ export function activate(context: ExtensionContext) {
   }
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ language: 'goose' }],
+    documentSelector: [{ language: "goose" }],
   }
 
-  const client = new LanguageClient('Goose Language Server', serverOptions, clientOptions)
+  const client = new LanguageClient(
+    "gooseLanguageServer",
+    "Goose Language Server",
+    serverOptions,
+    clientOptions
+  )
   client.setTrace(Trace.Verbose)
   client.start()
 

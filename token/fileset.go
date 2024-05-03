@@ -26,7 +26,7 @@ func (s *FileSet) Base() int {
 	return s.base
 }
 
-func (s *FileSet) AddFile(filename string, base, size int) *File {
+func (s *FileSet) AddFile(specifier string, base, size int) *File {
 	defer un(lock(&s.mutex))
 	if base < 0 {
 		base = s.base
@@ -37,7 +37,7 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 	if size < 0 {
 		panic(fmt.Sprintf("token.FileSet: size (%d) < 0", size))
 	}
-	scheme, _, found := strings.Cut(filename, ":")
+	scheme, _, found := strings.Cut(specifier, ":")
 
 	if !found {
 		scheme = "file"
@@ -45,7 +45,7 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 
 	f := &File{
 		set:       s,
-		specifier: filename,
+		specifier: specifier,
 		scheme:    scheme,
 		base:      base,
 		size:      size,
@@ -79,4 +79,36 @@ func (s *FileSet) Position(pos Pos) Position {
 	}
 
 	return file.Position(pos)
+}
+
+func (s *FileSet) GetPosition(specifier string, line, column int) Position {
+	for _, f := range s.files {
+		if f.specifier == specifier {
+			return f.GetPosition(line, column)
+		}
+	}
+	return Position{Filename: specifier, Line: line, Column: column}
+}
+
+func (s *FileSet) Pos(position Position) Pos {
+	if position.Filename == "" {
+		return NoPos
+	}
+
+	for _, f := range s.files {
+		if f.specifier == position.Filename {
+			return f.Pos(position.Offset)
+		}
+	}
+
+	return NoPos
+}
+
+func (s *FileSet) File(filename string) *File {
+	for _, f := range s.files {
+		if f.specifier == filename {
+			return f
+		}
+	}
+	return nil
 }

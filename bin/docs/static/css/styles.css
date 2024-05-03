@@ -23,6 +23,35 @@ body {
     "ss07", "ss08";
 }
 
+.wip-banner {
+  background: repeating-linear-gradient(
+    -40deg,
+    theme("colors.amber.500"),
+    theme("colors.amber.500") 25px,
+    color-mix(in lch, theme("colors.amber.600") 35%, theme("colors.amber.500")) 25px,
+    color-mix(in lch, theme("colors.amber.600") 35%, theme("colors.amber.500")) 50px
+  );
+  font-weight: 500;
+  color: black;
+}
+
+.prose {
+  max-width: 85ch;
+}
+
+.prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *)):before {
+  content: "";
+}
+
+.prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *)):after {
+  content: "";
+}
+
+.prose
+  :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *, [class~="code-block"] *)) {
+  @apply bg-neutral-600/50 rounded-md px-1 py-1 font-medium text-neutral-200;
+}
+
 .navlink {
   @apply block w-full rounded-md px-4 py-1 mb-1;
   &:hover {
@@ -31,43 +60,102 @@ body {
   &.selected {
     @apply bg-primary-500/30 font-semibold;
   }
-  &:has(.navgroup-toggle) {
-    @apply flex items-center justify-between pr-3;
-  }
-  .navgroup-toggle {
-    @apply rotate-0;
-    transition: transform 0.2s;
-  }
-  .navgroup-toggle.open {
-    @apply -rotate-45;
-  }
 }
 
 .navheader {
-  @apply text-xs font-bold text-zinc-300 mt-8 mb-1.5;
+  @apply text-xs font-bold text-zinc-500 mt-8 mb-1.5;
 }
 
 #nav {
   view-transition-name: nav;
 }
+
 #docs-nav {
   view-transition-name: docs-nav;
-  ul ul {
-    @apply pl-4;
+  ul ul li a {
+    @apply pl-8;
   }
+}
+
+.prose {
+  max-width: none;
+}
+
+body {
+  display: grid;
+  grid-template-columns: 1fr min(120ch, 100%) 1fr;
+}
+
+#nav-wrapper {
+  display: grid;
+  grid-template-columns: 1fr min(120ch, 100%) 1fr;
+}
+
+#nav-wrapper > div {
+  grid-column: 2;
+}
+
+#main {
+  grid-column: 2;
 }
 
 .card {
   @apply border rounded-md border-zinc-600 p-4 bg-zinc-800/50 block h-full transition-colors hover:border-primary-300 hover:bg-zinc-800/90;
 }
 
+.card.important {
+  @apply border rounded-md border-primary-600 p-4 bg-primary-800/50 block h-full transition-colors hover:border-primary-300 hover:bg-primary-800/90;
+}
+
+.code-block {
+  .code-header {
+    @apply bg-neutral-600/50 rounded-t-md px-4 py-1.5 text-xs text-neutral-200 font-medium font-mono;
+  }
+  pre {
+    @apply m-0 rounded-t-none w-full px-0;
+    counter-reset: line;
+  }
+}
+.code-block pre > code {
+  width: 100%;
+  display: inline-block;
+}
+.code-block pre > code > span.line {
+  width: 100%;
+  display: inline-block;
+}
+
+.code-block pre > code > span.line:before {
+  content: counter(line);
+  counter-increment: line;
+  @apply text-neutral-600;
+  display: inline-block;
+  text-align: right;
+  margin-right: 1em;
+  width: 2em;
+}
+
+span.line.highlighted.error {
+  @apply bg-red-500/20;
+}
+
+.font-mono *,
+code,
+kbd,
+pre,
+samp {
+  font-synthesis: none;
+}
+
 @font-face {
   font-family: "Monaspace Neon";
-  font-weight: 400;
-  font-style: normal;
   display: swap;
-  src: url("/static/font/MonaspaceNeon-Regular.woff2") format("woff2");
+  font-weight: 200 800;
+  font-stretch: 100% 125%;
+  font-style: oblique 0deg 11deg;
+  src: url("/static/font/MonaspaceNeon.woff2") format("woff2-variations");
 }
+
 @font-face {
   font-family: "Palanquin";
   font-weight: 100;

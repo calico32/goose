@@ -52,3 +52,32 @@ func (x *RangeExpr) End() token.Pos {
 func (*GeneratorExpr) exprNode() {}
 func (*YieldStmt) stmtNode()     {}
 func (*RangeExpr) exprNode()     {}
+
+func (s *GeneratorExpr) Flatten() []Node {
+	nodes := make([]Node, 0, len(s.Body))
+	if s.Receiver != nil {
+		nodes = append(nodes, s.Receiver.Flatten()...)
+	}
+	if s.Name != nil {
+		nodes = append(nodes, s.Name.Flatten()...)
+	}
+	if s.Params != nil {
+		nodes = append(nodes, s.Params.Flatten()...)
+	}
+	for _, stmt := range s.Body {
+		nodes = append(nodes, stmt.Flatten()...)
+	}
+	return nodes
+}
+
+func (s *YieldStmt) Flatten() []Node { return s.Result.Flatten() }
+
+func (x *RangeExpr) Flatten() []Node {
+	nodes := make([]Node, 0, 3)
+	nodes = append(nodes, x.Start.Flatten()...)
+	nodes = append(nodes, x.Stop.Flatten()...)
+	if x.Step != nil {
+		nodes = append(nodes, x.Step.Flatten()...)
+	}
+	return nodes
+}

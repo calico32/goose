@@ -11,12 +11,11 @@
     "type": "git",
     "url": ""
   },
-  "type": "module",
   "scripts": {
-    "generate": "yq . syntaxes/goose.tmLanguage.yaml > syntaxes/goose.tmLanguage.json",
+    "generate": "yq . syntaxes/goose.tmLanguage.yaml -P -o=json > syntaxes/goose.tmLanguage.json",
     "watch": "watchexec -w syntaxes -e yaml -r \"bun run generate\"",
     "build": "vsce package",
-    "vscode:prepublish": "bun run generate && esbuild src/index.ts --bundle --external:vscode --format=cjs --outfile=dist/index.js"
+    "vscode:prepublish": "bun run generate && esbuild src/index.ts --bundle --external:vscode-languageclient --format=cjs --outfile=dist/index.js && make -C .. goose-lsp && cp ../build/goose-lsp dist/goose-lsp"
   },
   "categories": [
     "Programming Languages"
@@ -51,9 +50,11 @@
     ]
   },
   "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^10.0.0-next.5"
   },
   "devDependencies": {
+    "@types/node": "^20.12.8",
+    "@vscode/vsce": "^2.26.0",
     "esbuild": "^0.20.2",
     "vscode": "^1.1.37"
   }

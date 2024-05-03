@@ -1,0 +1,150 @@
+{{template "+docs_layout.html" .}}
+
+{{define "docs-title"}}Language Syntax{{end}}
+
+{{define "docs-content"}}
+<section class="prose prose-invert prose-zinc">
+  <h1 class="text-3xl font-bold ">Language Syntax</h1>
+
+  <p>
+    goose has a minimal syntax that aims to be highly readable. In this section, we'll cover the syntax rules and
+    conventions of the goose language in-depth.
+  </p>
+
+  <p>
+    <i>If you're new to goose, we recommend starting with the <a class="text-blue-400"
+        href="/docs/language/tour">Language Tour</a> to get a quick overview of the language.</i>
+  </p>
+
+  <h2 class="text-2xl font-bold">Syntax Rules</h2>
+  <p>
+    goose classifies code into <strong>statements</strong> and <strong>expressions</strong>. A statement can be thought
+    of an action, while an expression represents a usable value. For example, <code>let x = 5</code> is a statement that
+    assigns the value <code>5</code> to the variable <code>x</code>, while <code>5 + 5</code> is an expression that
+    evaluates to <code>10</code>.
+  </p>
+  <p>
+    Statements can only be written in certain contexts, like the top-level of a file or inside a function. Expressions,
+    however, can be written almost anywhere, including where statements are expected.
+  </p>
+  {{codeBlock `goose` `
+  <pre>
+    // statement context
+    let x = 5
+
+    x // expression as statement
+
+    if /* expression context */ x > 0
+      // new statement context
+    end
+
+    if let y = x + 5 // invalid statement where expression is expected // [!code error]
+      println(y)
+    end
+  </pre>
+  `}}
+
+  <p>
+    Statements don't need to be separated by a semicolon or any other delimiter. In fact, statements don't even need to
+    be on separate lines! The parser can work out where one statement ends and another begins based on the syntax rules
+    of the language. However, it is recommended to use new lines to separate statements for readability.
+  </p>
+
+  {{codeBlock `goose` `
+  <pre>
+    // completely valid! but not recommended
+    let x = 5 let y = 10 println(x + y)
+
+    // equivalent to:
+    let x = 5
+    let y = 10
+    println(x + y)
+  </pre>
+  `}}
+
+  <p>
+    Inside blocks, whitespace isn't significant either, but indenting each level by 2 spaces is recommended for
+    readability and clarity.
+  </p>
+  {{codeBlock `goose` `
+  <pre>
+    if x > 5
+    println("x is greater than 5")
+    end
+
+    // equivalent to:
+    if x > 5
+      println("x is greater than 5")
+    end
+  </pre>
+  `}}
+
+  <h2 class="text-2xl font-bold">Comments</h2>
+  <p>
+    goose supports both single-line and multi-line comments. Single-line comments start with <code>//</code> and
+    continue until the end of the line. Multi-line comments start with <code>/*</code> and end with <code>*/</code>.
+    Multi-line comments cannot be nested.
+  </p>
+  {{codeBlock `goose` `
+  <pre>
+    // this is a single-line comment
+
+    /*
+      This is a multi-line comment
+      that spans multiple lines
+    */
+  </pre>
+  `}}
+
+  <h2 class="text-2xl font-bold">Identifiers</h2>
+  <p>
+    Identifiers are used to name variables, functions, and other entities in goose. An identifier must start with a
+    letter or an underscore and can contain letters, numbers, and underscores. Identifiers are case-sensitive. By
+    convention, identifiers should be written in <a href="https://en.wikipedia.org/wiki/Snake_case"
+      class="text-blue-400">snake_case</a>.
+  </p>
+
+  <p>
+    More formally, all valid identifiers must match the regular expression
+    <code>[a-zA-Z_][a-zA-Z0-9_]*</code>.
+  </p>
+
+  {{codeBlock `goose` `
+  <pre>
+    let my_variable = 5
+    fn hello_world()
+      println("Hello, World!")
+    end
+
+    // invalid identifiers
+    let 1variable = 5 // cannot start with a number // [!code error]
+    let my-variable = 5 // cannot contain hyphens // [!code error]
+    let $varia@ble = 5 // cannot contain special characters (except underscore) // [!code error]
+  </pre>
+  `}}
+
+  <h2 class="text-2xl font-bold">Keywords</h2>
+
+  <p>
+    goose has a set of reserved keywords that cannot be used as identifiers. These keywords are used to define the
+    structure of the language and cannot be redefined or shadowed.
+  </p>
+
+  <p>
+    The following is a list of all the keywords in goose:
+  </p>
+
+  {{codeBlock `` `
+  <pre>
+  let       const     symbol    if      then    else
+  repeat    while     forever   times   for     in
+  break     continue  fn        end     return  memo
+  import    export    as        show    is      generator
+  yield     to        step      struct  init    operator
+  try       catch     finally   throw   do      async
+  await     native    match     when    frozen
+  </pre>
+  `}}
+
+</section>
+{{end}}

@@ -33,7 +33,10 @@ loop:
 		case token.StringInterpIdent:
 			parts = append(parts, &ast.StringLiteralInterpIdent{
 				InterpPos: p.pos,
-				Name:      p.lit[1:],
+				Ident: &ast.Ident{
+					NamePos: p.pos + 1,
+					Name:    p.lit[1:],
+				},
 			})
 			p.next()
 		case token.StringInterpExprStart:

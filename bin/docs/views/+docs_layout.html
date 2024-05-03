@@ -1,0 +1,17 @@
+{{template "+layout.html" .}}
+
+{{define "title"}}{{block "docs-title" .}}{{end}} | goose{{end}}
+
+{{define "main"}}
+<div class="flex flex-row" id="docs-wrapper">
+  {{template "+docs_nav.html" .}}
+  <main class="p-4 overflow-y-scroll flex-1" id="docs-main">
+    {{block "docs-content" .}}{{end}}
+  </main>
+</div>
+{{end}}
+
+{{define "scripts"}}
+{{block "docs-nav-scripts" .}}{{end}}
+{{block "docs-scripts" .}}{{end}}
+{{end}}

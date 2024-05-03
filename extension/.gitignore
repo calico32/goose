@@ -4,3 +4,4 @@ syntaxes/goose.tmLanguage.json
 
 node_modules
 dist
+src/config.json*
