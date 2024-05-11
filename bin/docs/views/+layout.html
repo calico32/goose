@@ -8,12 +8,12 @@
   <link rel="icon" href="/static/img/goose.avif" />
   <link rel="shortcut icon" href="/static/img/goose.avif" type="image/x-icon" />
 
-  <title>{{block "title" .}}goose{{end}}</title>
-  <meta name="description" content="{{block " description" .}}goose is a general-purpose programming language. It's
+  <title>{{block `title` .}}goose{{end}}</title>
+  <meta name="description" content="{{block `description` .}}goose is a general-purpose programming language. It's
     simple, readable, and easy to learn.{{end}}" />
 
-  <meta name="og:title" content="{{template " title" .}}" />
-  <meta name="og:description" content="{{template " description" .}}" />
+  <meta name="og:title" content="{{template `title` .}}" />
+  <meta name="og:description" content="{{template `description` .}}" />
   <meta name="og:image" content="/static/img/goose.avif" />
 
   <link rel="stylesheet" href="/static/css/tailwind.css" />
