@@ -13,27 +13,37 @@ var Builtins = []types.BuiltinDoc{
 	{
 		Name:        "int.parse",
 		Label:       "int.parse(str)",
-		Description: "Parse an integer from a string.",
+		Signature:   "int.parse(s: str, base?: int) -> int",
+		Desc:        "Parse an integer from a string.",
+		Description: "Parse an integer from a string. The base can be specified as a second argument. If no base is provided, base 10 is used. If the string is not a valid integer, an error is thrown (use `int.tryParse` to avoid this).",
 	},
 	{
 		Name:        "int.tryParse",
 		Label:       "int.tryParse(str)",
-		Description: "Try to parse an integer from a string.",
+		Signature:   "int.tryParse(s: str, base?: int) -> int | null",
+		Desc:        "Try to parse an integer from a string.",
+		Description: "Try to parse an integer from a string. The base can be specified as a second argument. If no base is provided, base 10 is used. If the string is not a valid integer, `null` is returned.",
 	},
 	{
 		Name:        "float.parse",
 		Label:       "float.parse(str)",
-		Description: "Parse a float from a string.",
+		Signature:   "float.parse(s: str) -> float",
+		Desc:        "Parse a float from a string.",
+		Description: "Parse a float from a string. If the string is not a valid float, an error is thrown (use `float.tryParse` to avoid this).",
 	},
 	{
 		Name:        "float.tryParse",
 		Label:       "float.tryParse(str)",
-		Description: "Try to parse a float from a string.",
+		Signature:   "float.tryParse(s: str) -> float | null",
+		Desc:        "Try to parse a float from a string.",
+		Description: "Try to parse a float from a string. If the string is not a valid float, `null` is returned.",
 	},
 	{
 		Name:        "bool.parse",
 		Label:       "bool.parse(str)",
-		Description: "Parse a boolean from a string.",
+		Signature:   "bool.parse(s: str) -> bool",
+		Desc:        "Parse a boolean from a string.",
+		Description: `Parse a boolean from a string. Valid values are "1", "t", "T", "TRUE", "true", "True", "0", "f", "F", "FALSE", "false", and "False". If the string is not a valid boolean, an error is thrown.`,
 	},
 }
 

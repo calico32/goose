@@ -1,82 +1,118 @@
-{{template "+docs_layout.html" .}}
-
 {{define "docs-title"}}Documentation{{end}}
 
 {{define "docs-content"}}
 <section class="prose prose-invert prose-zinc">
   <h1 class="text-3xl font-bold ">goose Documentation</h1>
   <p>
-    goose is a minimal programming language built on top of <a href="https://go.dev" class="text-blue-400">Go</a>. It is
-    designed for simplicity and ease of use.
+    goose is a minimal programming language built on top of the
+    <a href="https://go.dev" class="text-blue-400">Go programming language</a>.
+    It is designed for simplicity and ease of use.
   </p>
   <p>
-    For a quick overview of the language, take the <a class="text-blue-400" href="/docs/language/tour">goose language
-      tour</a>.
+    goose is dynamically typed, which means that you don't have to specify the
+    type of a variable when you declare it. The type of a variable is determined
+    at runtime based on the value that is assigned to it. This makes goose a
+    very flexible language, but it also means that you have to be careful when
+    working with variables to avoid type errors.
   </p>
   <p>
-    goose is dynamically typed, which means that you don't have to specify the type of a variable when you declare it.
-    The type of a variable is determined at runtime based on the value that is assigned to it. This makes goose a very
-    flexible language, but it also means that you have to be careful when working with variables to avoid type errors.
+    goose is an interpreted language, which means that code is executed line by
+    line without prior compilation. There are no special optimizations or
+    pre-processing. While this makes goose slower than compiled languages at
+    scale, for small to medium-sized projects, its speed is more than enough
+    thanks to fast startup times and low memory usage.
   </p>
+  <h2 class="mt-2 mb-4">Get started</h2>
   <p>
-    goose is an interpreted language, which means that code is executed line by line without prior compilation. There
-    are no special optimizations or pre-processing. While this makes goose slower than compiled languages at scale, for
-    small to medium-sized projects, its speed is more than enough thanks to fast startup times and low memory usage.
+    To start writing goose code, you need to install the goose binary. See the
+    <a class="text-blue-400" href="/docs/getting-started">getting started
+      guide</a> for more information.<br /> For a quick overview of the language,
+    take the
+    <a class="text-blue-400" href="/docs/language-tour">goose language tour</a>.
   </p>
 </section>
-<section class="mt-4">
+<section class="mt-4" hx-boost="true" hx-target="#docs-main">
   <h2 class="text-2xl font-bold mt-4">Language Basics</h2>
-  <ul class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-4 mt-4">
-    <li class="lg:col-span-3 md:col-span-2">
-      <a href="/docs/language-tour" class="card important">
+  <ul class="grid lg:grid-cols-6 md:grid-cols-4 grid-cols-2 gap-4 mt-4">
+    <li class="lg:col-span-6 md:col-span-4 col-span-2">
+      <a href="/docs/language-tour" class="card primary">
         <h3 class="text-xl font-bold">Language Tour</h3>
         <p>New to goose? Start here to learn the basics.</p>
       </a>
     </li>
-    <li>
+    <li class="lg:col-span-3 col-span-2">
+      <a href="/docs/go-developers" class="card cyan">
+        <h3 class="text-xl font-bold">goose for Go Developers</h3>
+        <p>An introduction to goose for Go developers.</p>
+      </a>
+    </li>
+    <li class="lg:col-span-3 col-span-2">
+      <a href="/docs/js-developers" class="card yellow">
+        <h3 class="text-xl font-bold">goose for JavaScript Developers</h3>
+        <p>An introduction to goose for JavaScript developers.</p>
+      </a>
+    </li>
+    <li class="col-span-2">
+      <a href="/docs/idioms" class="card">
+        <h3 class="text-xl font-bold">Idioms</h3>
+        <p>Common patterns and idioms in goose.</p>
+      </a>
+    </li>
+    <li class="col-span-2">
+      <a href="/docs/style" class="card">
+        <h3 class="text-xl font-bold">Style & Convention</h3>
+        <p>Best practices for writing clean and idiomatic code.</p>
+      </a>
+    </li>
+    <li class="col-span-2">
+      <a href="/docs/faq" class="card">
+        <h3 class="text-xl font-bold">FAQ</h3>
+        <p>Frequently asked questions about goose.</p>
+      </a>
+    </li>
+    <li class="col-span-2">
       <a href="/docs/types" class="card">
         <h3 class="text-xl font-bold">Types</h3>
         <p>A guide to the built-in types in goose.</p>
       </a>
     </li>
-    <li>
+    <li class="col-span-2">
       <a href="/docs/variables" class="card">
         <h3 class="text-xl font-bold">Variables</h3>
         <p>Learn variables, lexical scoping, and closures.</p>
       </a>
     </li>
-    <li>
+    <li class="col-span-2">
       <a href="/docs/control-flow" class="card">
         <h3 class="text-xl font-bold">Control Flow</h3>
         <p>Loops, conditionals, error handling, and more.</p>
       </a>
     </li>
-    <li>
+    <li class="col-span-2">
       <a href="/docs/functions" class="card">
         <h3 class="text-xl font-bold">Functions</h3>
         <p>Learn about functions, closures, and recursion.</p>
       </a>
     </li>
-    <li>
+    <li class="col-span-2">
       <a href="/docs/custom-types" class="card">
         <h3 class="text-xl font-bold">Custom Types</h3>
         <p>Learn how to define and use custom types in goose.</p>
       </a>
     </li>
-    <li>
+    <li class="col-span-2">
       <a href="/docs/modules" class="card">
         <h3 class="text-xl font-bold">Modules & Packages</h3>
         <p>Export your code and import other modules into your program.</p>
       </a>
     </li>
-    <li>
+    <li class="col-span-2">
       <a href="/docs/introspection" class="card">
         <h3 class="text-xl font-bold">Introspection</h3>
         <p>Learn how to inspect and manipulate code at runtime.</p>
       </a>
     </li>
   </ul>
-
 
   <h2 class="text-2xl font-bold mt-4">goose In-Depth</h2>
   <ul class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-4 mt-4">
@@ -87,7 +123,5 @@
       </a>
     </li>
   </ul>
-
 </section>
-
 {{end}}

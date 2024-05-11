@@ -5,8 +5,9 @@
 {{define "main"}}
 <div class="flex flex-row" id="docs-wrapper">
   {{template "+docs_nav.html" .}}
-  <main class="p-4 overflow-y-scroll flex-1" id="docs-main">
+  <main class="p-4 overflow-y-scroll flex-1 min-h-full" id="docs-main" hx-boost="true" hx-target="#docs-main">
     {{block "docs-content" .}}{{end}}
+    {{template "+footer.html" .}}
   </main>
 </div>
 {{end}}

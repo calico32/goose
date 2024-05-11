@@ -1,17 +1,15 @@
-{{template "+docs_layout.html" .}}
-
 {{define "docs-title"}}Standard Library{{end}}
 
 {{define "docs-content"}}
 <section class="space-y-8">
   <h1 class="text-3xl font-bold">Standard Library</h1>
   <p>
-    The standard library is a collection of packages that provide a wide range
-    of functionality. The standard library is included with the goose
-    distribution and is always available for use in your programs.
+    The standard library is a collection of packages that provide a wide range of functionality. The
+    standard library is included with the goose distribution and is always available for use in your
+    programs.
   </p>
   <h2 class="text-xl font-semibold">Package Index</h2>
-  <ul class="grid md:grid-cols-2 grid-cols-1 gap-4">
+  <ul class="grid md:grid-cols-2 grid-cols-1 gap-4" hx-boost="true" hx-target="#docs-main">
     {{range .StandardLibrary}}
     <li>
       <a href="/docs/api/std/{{.Name}}" class="card">

@@ -1,22 +1,20 @@
-{{template "+docs_layout.html" .}}
-
 {{define "docs-title"}}Built-in Functions{{end}}
 
 {{define "docs-content"}}
 <section class="space-y-8">
   <h1 class="text-3xl font-bold">Built-in Functions</h1>
   <p>
-    The standard library is a collection of packages that provide a wide range
-    of functionality. The standard library is included with the goose
-    distribution and is always available for use in your programs.
+    The standard library is a collection of packages that provide a wide range of functionality. The
+    standard library is included with the goose distribution and is always available for use in your
+    programs.
   </p>
   <h2 class="text-xl font-semibold">Function Index</h2>
-  <ul class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-4">
+  <ul class="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-4" hx-boost="true" hx-target="#docs-main">
     {{range .Builtins}}
     <li>
       <a href="/docs/api/builtin/{{.Name}}" class="card">
         <h3 class="text-xl font-bold">{{.Label}}</h3>
-        <p>{{.Description}}</p>
+        <p>{{.Desc}}</p>
       </a>
     </li>
     {{end}}

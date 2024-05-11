@@ -8,6 +8,7 @@ require (
 	github.com/llir/llvm v0.3.6
 	github.com/onsi/ginkgo/v2 v2.17.2
 	github.com/onsi/gomega v1.33.1
+	github.com/pablor21/echo-etag/v4 v4.0.3
 	go.lsp.dev/jsonrpc2 v0.10.0
 	go.lsp.dev/protocol v0.12.0
 	go.lsp.dev/uri v0.3.0

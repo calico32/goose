@@ -4,42 +4,51 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="view-transition" content="same-origin" />
-  <link rel="icon" href="/static/img/goose.png" />
-  <link rel="shortcut icon" href="/static/img/goose.png" type="image/x-icon" />
-  <meta name="og:title" content="goose programming language" />
-  <meta name="og:description"
-    content="goose is a general-purpose programming language. It's simple, readable, and easy to learn." />
-  <meta name="og:image" content="/static/img/goose.png" />
+  <!-- <meta name="view-transition" content="same-origin" /> -->
+  <link rel="icon" href="/static/img/goose.avif" />
+  <link rel="shortcut icon" href="/static/img/goose.avif" type="image/x-icon" />
 
-  <title>{{block "title" .}}{{end}}</title>
+  <title>{{block "title" .}}goose{{end}}</title>
+  <meta name="description" content="{{block " description" .}}goose is a general-purpose programming language. It's
+    simple, readable, and easy to learn.{{end}}" />
+
+  <meta name="og:title" content="{{template " title" .}}" />
+  <meta name="og:description" content="{{template " description" .}}" />
+  <meta name="og:image" content="/static/img/goose.avif" />
 
   <link rel="stylesheet" href="/static/css/tailwind.css" />
-  <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
   {{block "styles" .}}{{end}}
 
+  <script src="/static/js/htmx.min.js"></script>
   {{block "head" .}}{{end}}
 </head>
 
 <body class="font-sans">
+  <!-- title tag for HTMX OOB replacements -->
+  <!-- this is watched for changes and dynamically swapped into the page title -->
+  <span id="title" class="hidden"></span>
+
   {{template "+nav.html" .}}
-  <div id="main" class="pt-20">
-    {{block "main" .}}{{end}}
-  </div>
+  <div id="main" class="pt-20">{{block "main" .}}{{end}}</div>
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const nav = document.getElementById("nav")
       const main = document.getElementById("main")
-      const observer = new ResizeObserver((entries) => {
+      const resizeObserver = new ResizeObserver((entries) => {
         const navHeight = nav.offsetHeight
         main.style.paddingTop = `${navHeight}px`
       })
-      observer.observe(nav)
+      resizeObserver.observe(nav)
+
+      // update the page title after an htmx swap
+      htmx.on("htmx:afterSwap", (event) => {
+        const title = document.getElementById("title").innerText
+        document.title = title
+      })
     });
   </script>
   {{block "scripts" .}}{{end}}
-
 </body>
 
 </html>

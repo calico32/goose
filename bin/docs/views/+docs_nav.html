@@ -1,47 +1,38 @@
-<aside class="p-4 z-10 overflow-y-scroll">
-  <nav data-selected="{{ .Path }}" id="docs-nav" class="w-64">
+<aside class="p-4 z-10 overflow-y-scroll" hx-boost="true" hx-swap="innerHTML" hx-target="#docs-main">
+  <nav id="docs-nav" class="w-64">
     <ul>
-      <li class="navheader !mt-0">
-        GOOSE DOCUMENTATION
-      </li>
-      <li><a href="/docs" class="navlink">Overview</a></li>
+      <li class="navheader !mt-0">GOOSE DOCUMENTATION</li>
+
+      <li><a href="/docs" class="navlink">Home</a></li>
+
+      <li class="navheader">GUIDES</li>
+
       <li><a href="/docs/getting-started" class="navlink">Get Started</a></li>
       <li><a href="/docs/language-tour" class="navlink">Language Tour</a></li>
+      <li><a href="/docs/idioms" class="navlink">Idioms</a></li>
+      <li><a href="/docs/faq" class="navlink">FAQ</a></li>
+      <li><a href="/docs/style" class="navlink">Style & Convention</a></li>
+      <li><a href="/docs/go-developers" class="navlink">Go Developers</a></li>
+      <li><a href="/docs/js-developers" class="navlink">JavaScript Developers</a></li>
 
-      <li class="navheader !mt-4 ml-4">
-        LANGUAGE BASICS
-      </li>
-      <li class="navgroup">
-        <ul>
-          <li><a href="/docs/types" class="navlink">Types</a></li>
-          <li><a href="/docs/variables" class="navlink">Variables</a></li>
-          <li><a href="/docs/control-flow" class="navlink">Control Flow</a></li>
-          <li><a href="/docs/functions" class="navlink">Functions</a></li>
-          <li><a href="/docs/custom-types" class="navlink">Custom Types</a></li>
-          <li><a href="/docs/modules" class="navlink">Modules & Packages</a></li>
-          <li><a href="/docs/introspection" class="navlink">Introspection</a></li>
-        </ul>
-      </li>
+      <li class="navheader">LANGUAGE BASICS</li>
+      <li><a href="/docs/types" class="navlink">Types</a></li>
+      <li><a href="/docs/variables" class="navlink">Variables</a></li>
+      <li><a href="/docs/control-flow" class="navlink">Control Flow</a></li>
+      <li><a href="/docs/functions" class="navlink">Functions</a></li>
+      <li><a href="/docs/custom-types" class="navlink">Custom Types</a></li>
+      <li><a href="/docs/modules" class="navlink">Modules & Packages</a></li>
+      <li><a href="/docs/introspection" class="navlink">Introspection</a></li>
 
-      <li class="navheader !mt-4 ml-4">
-        GOOSE IN-DEPTH
-      </li>
-      <li class="navgroup">
-        <ul>
-          <li><a href="/docs/syntax" class="navlink">Syntax</a></li>
-        </ul>
-      </li>
+      <li class="navheader">GOOSE IN-DEPTH</li>
+      <li><a href="/docs/syntax" class="navlink">Syntax</a></li>
 
-      <li class="navheader">
-        API REFERENCE
-      </li>
+      <li class="navheader">API REFERENCE</li>
       <li>
         <a href="/docs/api" class="navlink">Overview</a>
       </li>
       <li>
-        <div data-href="/docs/api/builtin" class="navlink">
-          <a href="/docs/api/builtin">Built-in Functions</a>
-        </div>
+        <a href="/docs/api/builtin" class="navlink">Built-in Functions</a>
         <ul>
           {{range .Builtins}}
           <li><a href="/docs/api/builtin/{{.Name}}" class="navlink">{{.Label}}</a></li>
@@ -49,9 +40,7 @@
         </ul>
       </li>
       <li>
-        <div data-href="/docs/api/std" class="navlink">
-          <a href="/docs/api/std">Standard Library</a>
-        </div>
+        <a href="/docs/api/std" class="navlink">Standard Library</a>
         <ul>
           {{range .StandardLibrary}}
           <li><a href="/docs/api/std/{{.Name}}" class="navlink">std:{{.Name}}</a></li>
@@ -64,19 +53,53 @@
 
 {{define "docs-nav-scripts"}}
 <script type="module">
-  const docsNav = document.getElementById('docs-nav');
-  const selected = docsNav.getAttribute('data-selected');
-  const links =
-    [
-      ...docsNav.querySelectorAll('a'),
-      ...docsNav.querySelectorAll('[data-href]'),
-      ...docsNav.querySelectorAll('.navlink')
-    ]
-  links.forEach(link => {
-    if (link.getAttribute('href') === selected || link.getAttribute('data-href') === selected) {
-      link.classList.add('selected');
+  function scrollIntoView(element) {
+    const container = document.getElementById('docs-nav').parentElement
+    const rect = element.getBoundingClientRect()
+    console.log(rect)
+    if (rect.top < 0 || rect.bottom > window.innerHeight) {
+      console.log('scrolling')
+      const top = element.offsetTop
+      const offset = top - container.clientHeight / 2
+      container.scrollTo({ top: offset, behavior: 'smooth' })
     }
-  });
+  }
+
+  function updateSelected() {
+    const docsNav = document.getElementById('docs-nav')
+    const selectedLink = window.location.pathname
+    const links =
+      [
+        ...docsNav.querySelectorAll('a'),
+        ...docsNav.querySelectorAll('[data-href]'),
+        ...docsNav.querySelectorAll('.navlink')
+      ]
+
+    let selected
+    links.forEach(link => {
+      if (link.getAttribute('href') === selectedLink || link.getAttribute('data-href') === selectedLink) {
+        link.classList.add('selected');
+        selected = link
+      } else {
+        link.classList.remove('selected');
+      }
+    })
+
+    return selected
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const initial = updateSelected()
+    setTimeout(() => scrollIntoView(initial), 100)
+  })
+
+  // when the path changes, update the selected link
+  htmx.on('htmx:load', () => {
+    updateSelected()
+    // fix scroll for main content
+    const main = document.getElementById('docs-main')
+    main.scrollTo({ top: 0 })
+  })
 </script>
 
 <script type="module">

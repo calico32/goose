@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"io"
@@ -9,58 +12,165 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 
-	"github.com/calico32/goose/lib/types"
 	"github.com/labstack/echo/v4"
 )
 
-type Template struct {
+type TemplateRenderer struct {
 	templates *template.Template
 }
 
-type TemplateContext struct {
-	Path            string
-	StandardLibrary []types.StdlibDoc
-	Builtins        []types.BuiltinDoc
-}
-
-func (t *TemplateContext) Clone() *TemplateContext {
-	return &TemplateContext{
-		Path:            t.Path,
-		StandardLibrary: t.StandardLibrary,
-		Builtins:        t.Builtins,
+func (r *TemplateRenderer) ReadFile(path string) ([]byte, error) {
+	var fs fs.FS
+	if mode == "release" {
+		fs = tmplFS
+	} else {
+		fs = os.DirFS(".")
 	}
+
+	file, err := fs.Open("views/" + path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	return io.ReadAll(file)
 }
 
-func (t *TemplateContext) CloneFor(c echo.Context) *TemplateContext {
-	x := t.Clone()
-	x.Path = c.Request().URL.Path
-	return x
+func (r *TemplateRenderer) WriteCachable(content []byte, c echo.Context) error {
+	hash := sha256.Sum256(content)
+	etag := `"` + base64.StdEncoding.EncodeToString(hash[:]) + `"`
+	c.Response().Header().Set("ETag", etag)
+	if c.Request().Header.Get("If-None-Match") == etag {
+		c.Response().WriteHeader(http.StatusNotModified)
+		return nil
+	} else {
+		_, err := c.Response().Write(content)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+	}
+	return nil
 }
 
-func createRenderer() *Template {
+func createRenderer() *TemplateRenderer {
 	funcMap := template.FuncMap{
 		"codeBlock": codeBlock,
 	}
 
 	templates := template.New("").Funcs(funcMap)
-	return &Template{
+	return &TemplateRenderer{
 		templates: templates,
 	}
 }
 
-func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	tmpl := template.Must(t.templates.Clone())
-	tmpl, chain, err := loadTemplateChain(tmpl, name, make([]string, 0, 10))
-	c.Logger().Debugf("Loaded templates: %v", chain)
+func (r *TemplateRenderer) Render(w io.Writer, tmplName string, ctx any, c echo.Context) error {
+	tmpl := template.Must(r.templates.Clone())
+	tmpl, _, err := loadTemplateChainFromFile(tmpl, tmplName, make([]string, 0, 10))
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusNotFound, "Page not found")
 	}
-	return tmpl.ExecuteTemplate(w, name, data)
+	return tmpl.ExecuteTemplate(w, tmplName, ctx)
 }
 
-func loadTemplateChain(tmpl *template.Template, name string, chain []string) (*template.Template, []string, error) {
+func ExecuteToString(t *template.Template, templateName string, ctx any) (string, error) {
+	var b strings.Builder
+	err := t.ExecuteTemplate(&b, templateName, ctx)
+	return b.String(), err
+}
+
+func DoRender[Ctx Context](r *TemplateRenderer, path string, templateName string, ctx Ctx, c echo.Context) error {
+	isHTMX := strings.Contains(c.Request().Header.Get("HX-Request"), "true")
+	if isHTMX {
+		tmpl := template.Must(r.templates.Clone())
+		tmpl, _, err := loadTemplateChainFromFile(tmpl, templateName, make([]string, 0, 10))
+		if err != nil {
+			c.Logger().Error(err)
+			return echo.NewHTTPError(http.StatusNotFound, "Page not found")
+		}
+
+		title, err := ExecuteToString(tmpl, "docs-title", ctx.CloneFor(c))
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+
+		page, err := ExecuteToString(tmpl, "docs-content", ctx.CloneFor(c))
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+
+		c.Response().Header().Set("Content-Type", "text/html")
+		htmxContent := fmt.Sprintf(`
+			<span id="title" class="hidden" hx-swap-oob="true">%s | goose</span>
+			%s
+		`, title, page)
+		err = r.WriteCachable([]byte(htmxContent), c)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+
+		return nil
+	}
+
+	isDocs := strings.HasPrefix(path, "/docs")
+	if isDocs {
+		// not HTMX inside of /docs, which means we need to render the full page
+		f, err := r.ReadFile(templateName)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+
+		tmpl := fmt.Sprintf(`{{template "+docs_layout.html" .}} %s`, f)
+		c.Response().Header().Set("Content-Type", "text/html")
+
+		buf := new(bytes.Buffer)
+		err = r.RenderFromString(buf, tmpl, ctx.CloneFor(c), c)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+		err = r.WriteCachable(buf.Bytes(), c)
+		if err != nil {
+			c.Logger().Error(err)
+			return err
+		}
+
+		return nil
+	}
+
+	err := c.Render(http.StatusOK, templateName, ctx.CloneFor(c))
+	if err != nil {
+		c.Logger().Error(err)
+		return err
+	}
+	return nil
+}
+
+func (t *TemplateRenderer) RenderToString(name string, data any, c echo.Context) (string, error) {
+	var b strings.Builder
+	err := t.Render(&b, name, data, c)
+	return b.String(), err
+}
+
+func (t *TemplateRenderer) RenderFromString(w io.Writer, content string, data any, c echo.Context) error {
+	tmpl := template.Must(t.templates.Clone())
+	tmpl, _, err := loadTemplateChain(tmpl, "<content>", content, make([]string, 0, 10))
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusNotFound, "Page not found")
+	}
+	// fmt.Printf("Loaded templates: %v\n", chain)
+	return tmpl.Execute(w, data)
+}
+
+func loadTemplateChainFromFile(tmpl *template.Template, name string, chain []string) (*template.Template, []string, error) {
 	var fs fs.FS
 	if mode == "release" {
 		fs = tmplFS
@@ -79,12 +189,15 @@ func loadTemplateChain(tmpl *template.Template, name string, chain []string) (*t
 		return nil, chain, err
 	}
 
+	return loadTemplateChain(tmpl, name, string(f), chain)
+}
+
+func loadTemplateChain(tmpl *template.Template, name string, content string, chain []string) (*template.Template, []string, error) {
 	// check if the file has template directives
 	pattern := regexp.MustCompile(`{{template "([^\"]+)"`)
-	matches := pattern.FindAllStringSubmatch(string(f), -1)
+	matches := pattern.FindAllStringSubmatch(content, -1)
 	if len(matches) == 0 {
-		fmt.Printf("Loading %s\n", name)
-		tmpl, err := tmpl.ParseFS(fs, "views/"+name)
+		tmpl, err := tmpl.New(name).Parse(content)
 		chain = append(chain, name)
 		if err != nil {
 			return nil, chain, err
@@ -95,10 +208,15 @@ func loadTemplateChain(tmpl *template.Template, name string, chain []string) (*t
 	// load chains
 	for _, m := range matches {
 		for _, match := range m[1:] {
+			if !strings.HasSuffix(match, ".html") {
+				// not a template file
+				continue
+			}
 			if slices.Contains(chain, match) {
 				return nil, chain, echo.NewHTTPError(http.StatusInternalServerError, "Circular template dependency")
 			}
-			tmpl, chain, err = loadTemplateChain(tmpl, match, chain)
+			var err error
+			tmpl, chain, err = loadTemplateChainFromFile(tmpl, match, chain)
 			if err != nil {
 				return nil, chain, err
 			}
@@ -106,7 +224,7 @@ func loadTemplateChain(tmpl *template.Template, name string, chain []string) (*t
 	}
 
 	// load the current template
-	tmpl, err = tmpl.ParseFS(fs, "views/"+name)
+	tmpl, err := tmpl.New(name).Parse(content)
 	chain = append(chain, name)
 	if err != nil {
 		return nil, chain, err
@@ -130,7 +248,6 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 	if code == 404 {
 		c.Render(code, "+error_404.html", nil)
 	} else {
-		c.Logger().Error(err)
 		c.Render(code, "+error.html", map[string]any{
 			"Code":    code,
 			"Message": message,

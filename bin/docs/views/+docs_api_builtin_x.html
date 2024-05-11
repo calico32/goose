@@ -1,0 +1,15 @@
+{{define "docs-title"}}{{ .Doc.Name }}{{end}}
+
+{{define "docs-content"}}
+<section class="prose prose-invert prose-zinc">
+  <h1 class="text-3xl font-bold">{{ .Doc.Label }}</h1>
+
+  {{printf `
+  <pre>
+    %s
+  </pre>
+  ` .Doc.Signature | codeBlock `signature` }}
+
+  <p>{{ .Doc.Description }}</p>
+</section>
+{{end}}

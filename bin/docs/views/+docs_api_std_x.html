@@ -1,0 +1,9 @@
+{{define "docs-title"}}{{ .Pkg.Name }}{{end}}
+
+{{define "docs-content"}}
+<section class="prose prose-invert prose-zinc">
+  <h1 class="text-3xl font-bold">{{ .Pkg.Name }}</h1>
+
+  <p>{{ .Pkg.Description }}</p>
+</section>
+{{end}}
