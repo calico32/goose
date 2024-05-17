@@ -13,7 +13,7 @@ import (
 //go:embed tmp/highlight.js
 var highlightJs []byte
 var jsBinary string
-var codeBlocks = map[string]string{}
+var codeBlocks = NewMutexMap[string, string]()
 
 func init() {
 	// look for bun or node on path
@@ -32,7 +32,7 @@ func codeBlock(filename, code string) template.HTML {
 
 	var highlighted string
 	// check if the existing block has already been highlighted
-	if existing, ok := codeBlocks[code]; ok {
+	if existing, ok := codeBlocks.Load(code); ok {
 		highlighted = existing
 	} else {
 		// drop the highlight.js script onto disk
@@ -50,8 +50,8 @@ func codeBlock(filename, code string) template.HTML {
 		}
 
 		// save the code block
-		codeBlocks[code] = string(out)
-		highlighted = codeBlocks[code]
+		codeBlocks.Store(code, string(out))
+		highlighted = string(out)
 	}
 
 	return template.HTML(fmt.Sprintf(`
