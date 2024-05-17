@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -58,6 +59,9 @@ func (r *TemplateRenderer) WriteCachable(content []byte, c echo.Context) error {
 func createRenderer() *TemplateRenderer {
 	funcMap := template.FuncMap{
 		"codeBlock": codeBlock,
+		"getCurrentYear": func() int {
+			return time.Now().Year()
+		},
 	}
 
 	templates := template.New("").Funcs(funcMap)

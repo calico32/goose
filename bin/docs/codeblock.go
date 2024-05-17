@@ -28,7 +28,7 @@ func codeBlock(filename, code string) template.HTML {
 	// unfortunately, no good way to do textmate highlighting in go
 	// call out to TS for now
 
-	code = stripIndent(strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(code), "</pre>"), "<pre>"))
+	code = cleanCode(code)
 
 	var highlighted string
 	// check if the existing block has already been highlighted
@@ -71,7 +71,7 @@ func stripIndent(s string) string {
 	if len(strings.TrimSpace(lines[0])) == 0 {
 		lines = lines[1:]
 	}
-	indent := len(lines[0]) - len(strings.TrimLeft(lines[0], " "))
+	indent := len(lines[0]) - len(strings.TrimLeft(lines[0], " \t"))
 	for i, line := range lines {
 		if len(line) >= indent {
 			lines[i] = line[indent:]
@@ -82,4 +82,13 @@ func stripIndent(s string) string {
 		lines = lines[:len(lines)-1]
 	}
 	return strings.Join(lines, "\n")
+}
+
+func cleanCode(s string) (o string) {
+	o = strings.TrimSpace(s)
+	o = strings.TrimPrefix(o, "<pre>")
+	o = strings.TrimSuffix(o, "</pre>")
+	fmt.Println(o)
+	o = stripIndent(o)
+	return
 }

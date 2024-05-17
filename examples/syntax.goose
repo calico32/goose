@@ -762,3 +762,21 @@ let n = Node(5)
 operator Node<T> +(a: Node<T>, b: Node<T>): Node<T>
   return a.insertAfter(b)
 end
+
+
+
+// doc comments
+
+/// This is a doc comment
+fn foo()
+  // ...
+end
+
+/// This is a doc comment spanning multiple lines
+/// and it can contain arbitrary text
+///
+/// @param x the first parameter
+/// @returns the result
+fn bar(x)
+  // ...
+end
