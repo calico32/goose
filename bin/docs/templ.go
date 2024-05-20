@@ -22,7 +22,7 @@ type TemplateRenderer struct {
 	templates *template.Template
 }
 
-func (r *TemplateRenderer) ReadFile(path string) ([]byte, error) {
+func readTemplateFile(path string) ([]byte, error) {
 	var fs fs.FS
 	if mode == "release" {
 		fs = tmplFS
@@ -125,7 +125,7 @@ func DoRender[Ctx Context](r *TemplateRenderer, path string, templateName string
 	isDocs := strings.HasPrefix(path, "/docs")
 	if isDocs {
 		// not HTMX inside of /docs, which means we need to render the full page
-		f, err := r.ReadFile(templateName)
+		f, err := readTemplateFile(templateName)
 		if err != nil {
 			c.Logger().Error(err)
 			return err
@@ -175,20 +175,7 @@ func (t *TemplateRenderer) RenderFromString(w io.Writer, content string, data an
 }
 
 func loadTemplateChainFromFile(tmpl *template.Template, name string, chain []string) (*template.Template, []string, error) {
-	var fs fs.FS
-	if mode == "release" {
-		fs = tmplFS
-	} else {
-		fs = os.DirFS(".")
-	}
-
-	file, err := fs.Open("views/" + name)
-	if err != nil {
-		return nil, chain, err
-	}
-	defer file.Close()
-
-	f, err := io.ReadAll(file)
+	f, err := readTemplateFile(name)
 	if err != nil {
 		return nil, chain, err
 	}
