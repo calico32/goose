@@ -86,30 +86,19 @@ func (ls *LanguageServer) Initialized(ctx context.Context, params *InitializedPa
 }
 
 func (ls *LanguageServer) SetTrace(ctx context.Context, params *SetTraceParams) (err error) {
-	if err := ls.ensureInitialized(); err != nil {
-		return err
-	}
 	return
 }
 
 func (ls *LanguageServer) LogTrace(ctx context.Context, params *LogTraceParams) (err error) {
-	if err := ls.ensureInitialized(); err != nil {
-		return err
-	}
 	return
 }
 
 func (ls *LanguageServer) Shutdown(ctx context.Context) (err error) {
-	if err := ls.ensureInitialized(); err != nil {
-		return err
-	}
 	return
 }
 
 func (ls *LanguageServer) Exit(ctx context.Context) (err error) {
-	if err := ls.ensureInitialized(); err != nil {
-		return err
-	}
+
 	err = ls.conn.Close()
 	if err != nil {
 		return
@@ -303,9 +292,7 @@ func (ls *LanguageServer) DidDeleteFiles(ctx context.Context, params *DeleteFile
 }
 
 func (ls *LanguageServer) DidOpen(ctx context.Context, params *DidOpenTextDocumentParams) (err error) {
-	if err := ls.ensureInitialized(); err != nil {
-		return err
-	}
+	ls.logger.Sugar().Debugf("DidOpen: %s", params.TextDocument.URI.Filename())
 
 	if params.TextDocument.LanguageID != "goose" && !strings.HasSuffix(params.TextDocument.URI.Filename(), ".goose") {
 		ls.logger.Sugar().Errorf("ignoring document with languageID %s", params.TextDocument.LanguageID)
@@ -320,6 +307,12 @@ func (ls *LanguageServer) DidOpen(ctx context.Context, params *DidOpenTextDocume
 }
 
 func (ls *LanguageServer) checkModule(ctx context.Context, documentUri DocumentURI) error {
+	uriParts := strings.Split(string(documentUri), "://")
+	if uriParts[0] != "file" {
+		// skip
+		return nil
+	}
+
 	ls.logger.Sugar().Debugf("checking module: %s", documentUri.Filename())
 	sourceMu, ok := ls.sourceFiles[documentUri]
 	if !ok {
@@ -332,12 +325,9 @@ func (ls *LanguageServer) checkModule(ctx context.Context, documentUri DocumentU
 
 	fset := token.NewFileSet()
 	ls.fsets[documentUri] = fset
-	t := ls.timer.Mark("parse")
 	module, err := parser.ParseFile(fset, "file:"+documentUri.Filename(), src, nil)
-	t.Done()
 	if err != nil {
 		if errs, ok := err.(scanner.ErrorList); ok {
-			t := ls.timer.Mark("writeDiagnostics")
 			ls.logger.Sugar().Debugf("parsed %s with %d errors", documentUri.Filename(), len(errs))
 			// report parse errors to the client
 			diagnostics := map[DocumentURI][]Diagnostic{}
@@ -364,9 +354,7 @@ func (ls *LanguageServer) checkModule(ctx context.Context, documentUri DocumentU
 					},
 				})
 			}
-			t.Done()
 
-			t = ls.timer.Mark("publishDiagnostics")
 			for uri, diags := range diagnostics {
 				ls.parseErrors[uri] = diags
 				err = ls.client.PublishDiagnostics(ctx, &PublishDiagnosticsParams{
@@ -377,7 +365,8 @@ func (ls *LanguageServer) checkModule(ctx context.Context, documentUri DocumentU
 					return err
 				}
 			}
-			t.Done()
+			ls.logger.Sugar().Debugf("finished checking module: %s", documentUri.Filename())
+			return nil
 		}
 		return err
 	}
@@ -386,7 +375,6 @@ func (ls *LanguageServer) checkModule(ctx context.Context, documentUri DocumentU
 	ls.parseErrors[documentUri] = nil
 	diagnostics := []Diagnostic{}
 
-	t = ls.timer.Mark("validate")
 	// move onto validation
 	v, err := validator.New(module, fset, false, nil, nil, nil)
 	if err != nil {
@@ -396,9 +384,7 @@ func (ls *LanguageServer) checkModule(ctx context.Context, documentUri DocumentU
 	if err != nil {
 		return err
 	}
-	t.Done()
 
-	t = ls.timer.Mark("writeValidationDiagnostics")
 	problems := v.Diagnostics()
 	if len(problems) > 0 {
 		for _, problem := range problems {
@@ -410,18 +396,16 @@ func (ls *LanguageServer) checkModule(ctx context.Context, documentUri DocumentU
 			})
 		}
 	}
-	t.Done()
 
-	t = ls.timer.Mark("publishDiagnostics")
 	ls.client.PublishDiagnostics(ctx, &PublishDiagnosticsParams{
 		URI:         documentUri,
 		Diagnostics: diagnostics,
 	})
-	t.Done()
 
 	ls.modules[documentUri] = &Mutexed[*ast.Module]{
 		v: module,
 	}
+	ls.logger.Sugar().Debugf("finished checking module: %s", documentUri.Filename())
 	return nil
 }
 
@@ -622,9 +606,7 @@ func (ls *LanguageServer) Formatting(ctx context.Context, params *DocumentFormat
 }
 
 func (ls *LanguageServer) Hover(ctx context.Context, params *HoverParams) (result *Hover, err error) {
-	if err := ls.ensureInitialized(); err != nil {
-		return nil, err
-	}
+	return nil, nil
 
 	moduleMu, ok := ls.modules[params.TextDocument.URI]
 	if !ok {
