@@ -139,7 +139,7 @@ func (p *Parser) parseStmt() (s ast.Stmt) {
 		// tokens that may start an expression
 		token.Ident, token.Int, token.Float, token.LParen, token.LBracket, token.LBrace, token.StringStart, token.Null, // operands
 		token.Add, token.Sub, token.Mul, token.LogNot, // unary operators
-		token.Memo, token.Func, token.Generator, // function declarations
+		token.Func, token.Generator, // function declarations
 		token.Throw,                                      // throw statement
 		token.Await, token.Do, token.Frozen, token.Match: // expression blocks
 		s = p.parseSimpleStmt()
@@ -176,12 +176,34 @@ func (p *Parser) parseStmt() (s ast.Stmt) {
 		s = p.parseStructStmt()
 	case token.Operator:
 		s = p.parseOperatorStmt()
-	case token.Async:
+	case token.Memo:
 		if p.nextTok == token.Operator {
 			s = p.parseOperatorStmt()
-		} else {
-			s = p.parseSimpleStmt()
+			break
 		}
+
+		s = p.parseSimpleStmt()
+	case token.Async:
+		// we need to lookahead to see if this is a function or operator statement
+
+		// async operator
+		if p.nextTok == token.Operator {
+			s = p.parseOperatorStmt()
+			break
+		}
+
+		// async memo
+		if p.nextTok == token.Memo {
+			_, tok, _ := p.scanner.Peek()
+			if tok == token.Operator {
+				// async memo operator
+				s = p.parseOperatorStmt()
+				break
+			}
+		}
+
+		// async function or async memo function
+		s = p.parseSimpleStmt()
 	case token.Native:
 		s = p.parseNativeStmt()
 	default:

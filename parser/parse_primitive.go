@@ -14,10 +14,14 @@ func (p *Parser) parseString() (s *ast.StringLiteral) {
 	quote := p.expect(token.StringStart)
 	var parts []ast.StringLiteralPart
 
+	if len(start) > 1 {
+		start = start[1:]
+	}
+
 	str := &ast.StringLiteral{
 		StringStart: &ast.StringLiteralStart{
 			Quote:   quote,
-			Content: start[1:],
+			Content: start,
 		},
 	}
 

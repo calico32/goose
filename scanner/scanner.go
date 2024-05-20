@@ -246,6 +246,21 @@ func (s *Scanner) skipWhitespace() {
 	}
 }
 
+// Peek returns the next token without consuming it.
+// Peek is idempotent.
+func (s *Scanner) Peek() (pos token.Pos, tok token.Token, literal string) {
+	// if we already have lookahead done, return it
+	if len(s.scanBufffer) != 0 {
+		return s.scanBufffer[0].pos, s.scanBufffer[0].tok, s.scanBufffer[0].literal
+	}
+
+	// preemtively scan the next token
+	pos, tok, literal = s.Scan()
+	// put it at the front of the lookahead buffer for the next call to Peek or Scan1
+	s.scanBufffer = append([]*ScanResult{{pos, tok, literal, nil}}, s.scanBufffer...)
+	return
+}
+
 func (s *Scanner) Scan() (pos token.Pos, tok token.Token, literal string) {
 	if len(s.scanBufffer) != 0 {
 		pos, tok, literal, parts := s.scanBufffer[0].pos, s.scanBufffer[0].tok, s.scanBufffer[0].literal, s.scanBufffer[0].parts

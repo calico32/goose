@@ -36,6 +36,8 @@ func (i *interp) runStmt(scope *Scope, stmt ast.Stmt) StmtResult {
 		return i.runIncDecStmt(scope, stmt)
 	case *ast.StructStmt:
 		return i.runStructStmt(scope, stmt)
+	case *ast.OperatorStmt:
+		return i.runOperatorStmt(scope, stmt)
 	case *ast.ExportDeclStmt:
 		return i.runExportDeclStmt(scope, stmt)
 	case *ast.ExportListStmt:

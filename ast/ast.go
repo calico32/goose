@@ -30,8 +30,9 @@ type PosRange struct {
 	To   token.Pos
 }
 
-func (p PosRange) Pos() token.Pos { return p.From }
-func (p PosRange) End() token.Pos { return p.To }
+func (p PosRange) Pos() token.Pos  { return p.From }
+func (p PosRange) End() token.Pos  { return p.To }
+func (p PosRange) Flatten() []Node { return []Node{p} }
 
 type Expr interface {
 	Node

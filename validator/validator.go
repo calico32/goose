@@ -244,10 +244,72 @@ func (v *Validator) checkStmt(scope *Scope, stmt ast.Stmt) StmtResult {
 		return v.checkRepeatCountStmt(scope, stmt)
 	case *ast.IncDecStmt:
 		return v.checkIncDecStmt(scope, stmt)
+	case *ast.OperatorStmt:
+		return v.checkOperatorStmt(scope, stmt)
 	default:
 		fmt.Fprintf(os.Stderr, "unhandled statement type: %T\n", stmt)
 		return &Void{}
 	}
+}
+
+func (v *Validator) checkOperatorStmt(scope *Scope, stmt *ast.OperatorStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	constructor := scope.Get(stmt.Receiver.Name)
+	if constructor == nil {
+		v.Report(protocol.DiagnosticSeverityError, stmt.Receiver, "undefined type %s", stmt.Receiver.Name)
+	} else if c, ok := constructor.Value.(*Func); !ok {
+		v.Report(protocol.DiagnosticSeverityError, stmt.Receiver, "value %s is not a type", stmt.Receiver.Name)
+	} else if c.NewableProto == nil {
+		v.Report(protocol.DiagnosticSeverityError, stmt.Receiver, "value %s is not a type", stmt.Receiver.Name)
+	} else {
+		proto := c.NewableProto
+
+		if proto.Operators[stmt.Tok] != nil {
+			r := &ast.PosRange{From: stmt.TokPos, To: stmt.TokPos + token.Pos(len(stmt.Tok.String()))}
+			v.Report(protocol.DiagnosticSeverityError, r, "duplicate operator %s", stmt.Tok)
+		}
+
+		proto.Operators[stmt.Tok] = &OperatorFunc{
+			Async:   stmt.Async.IsValid(),
+			Builtin: false,
+		}
+	}
+
+	// validate parameters
+	paramNames := map[string]bool{}
+	for _, param := range stmt.Params.List {
+		if paramNames[param.Ident.Name] {
+			v.Report(protocol.DiagnosticSeverityError, param.Ident, "duplicate parameter %s", param.Ident.Name)
+		}
+		paramNames[param.Ident.Name] = true
+		if param.Value != nil {
+			v.checkExpr(scope, param.Value)
+		}
+	}
+
+	closure := scope.Fork(ScopeOwnerClosure)
+	funcScope := closure.Fork(ScopeOwnerFunc)
+
+	// set parameters in scope
+	for _, param := range stmt.Params.List {
+		funcScope.Set(param.Ident.Name, &Variable{
+			Constant: false,
+		})
+	}
+
+	// TODO: better this
+	funcScope.Set("this", &Variable{
+		Constant: true,
+	})
+
+	if stmt.Arrow.IsValid() {
+		v.checkExpr(funcScope, stmt.ArrowExpr)
+	}
+
+	v.checkStmts(funcScope, stmt.Body)
+
+	return &Void{}
 }
 
 func (v *Validator) checkIncDecStmt(scope *Scope, stmt *ast.IncDecStmt) StmtResult {
@@ -827,10 +889,22 @@ func (v *Validator) checkExpr(scope *Scope, expr ast.Expr) Value {
 		return v.checkDoExpr(scope, expr)
 	case *ast.NativeExpr:
 		return v.checkNativeExpr(scope, expr)
+	case *ast.RangeExpr:
+		return v.checkRangeExpr(scope, expr)
 	default:
 		fmt.Fprintf(os.Stderr, "unhandled expression type: %T\n", expr)
 		return nil
 	}
+}
+
+func (v *Validator) checkRangeExpr(scope *Scope, expr *ast.RangeExpr) Value {
+	defer pop(push(v, expr))
+
+	v.checkExpr(scope, expr.Start)
+	v.checkExpr(scope, expr.Stop)
+	v.checkExpr(scope, expr.Step)
+
+	return nil
 }
 
 func (v *Validator) checkNativeExpr(scope *Scope, expr *ast.NativeExpr) Value {
@@ -986,7 +1060,18 @@ func (v *Validator) checkBinaryExpr(scope *Scope, expr *ast.BinaryExpr) Value {
 	defer pop(push(v, expr))
 
 	v.checkExpr(scope, expr.X)
-	v.checkExpr(scope, expr.Y)
+
+	if expr.Op == token.Arrow {
+		rightScope := scope.Fork(ScopeOwnerPipeline)
+		rightScope.Set("_", &Variable{
+			Constant: true,
+		})
+
+		v.checkExpr(rightScope, expr.Y)
+	} else {
+		v.checkExpr(scope, expr.Y)
+	}
+
 	return nil
 }
 

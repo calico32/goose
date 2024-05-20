@@ -21,6 +21,7 @@ const (
 	ScopeOwnerGenerator
 	ScopeOwnerImport
 	ScopeOwnerMatch
+	ScopeOwnerOperator
 )
 
 var scopeOwnerNames = [...]string{
@@ -40,6 +41,7 @@ var scopeOwnerNames = [...]string{
 	ScopeOwnerGenerator: "generator",
 	ScopeOwnerImport:    "import",
 	ScopeOwnerMatch:     "match",
+	ScopeOwnerOperator:  "operator",
 }
 
 // scope hierarchy:

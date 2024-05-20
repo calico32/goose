@@ -119,7 +119,6 @@ func (i *interp) runAssignStmt(scope *Scope, stmt *ast.AssignStmt) StmtResult {
 
 		scope.Update(ident, newValue.Value)
 		return &Void{}
-
 	case *ast.SelectorExpr:
 		existing := i.evalExpr(scope, lhs.X)
 
@@ -138,9 +137,20 @@ func (i *interp) runAssignStmt(scope *Scope, stmt *ast.AssignStmt) StmtResult {
 			i.Throw("cannot assign to property %s of type %s", lhs.Sel.Name, existing.Type())
 		}
 
+		selected := GetProperty(existing, NewString(sel))
+		op := GetOperator(selected, stmt.Tok)
+		if op == nil {
+			i.Throw("operator %s not defined for type %s", stmt.Tok, existing.Type())
+		}
 		rhs := i.evalExpr(scope, stmt.Rhs)
+		newValue := op.Executor(&FuncContext{
+			Interp: i,
+			Scope:  scope,
+			This:   selected,
+			Args:   []Value{rhs},
+		})
 
-		SetProperty(existing, NewString(sel), rhs)
+		SetProperty(existing, NewString(sel), newValue.Value)
 	case *ast.BracketSelectorExpr:
 		existing := i.evalExpr(scope, lhs.X)
 
@@ -161,9 +171,20 @@ func (i *interp) runAssignStmt(scope *Scope, stmt *ast.AssignStmt) StmtResult {
 			i.Throw("cannot index with type %s", sel.Type())
 		}
 
+		selected := GetProperty(existing, sel.(PropertyKey))
+		op := GetOperator(selected, stmt.Tok)
+		if op == nil {
+			i.Throw("operator %s not defined for type %s", stmt.Tok, existing.Type())
+		}
 		rhs := i.evalExpr(scope, stmt.Rhs)
+		newValue := op.Executor(&FuncContext{
+			Interp: i,
+			Scope:  scope,
+			This:   selected,
+			Args:   []Value{rhs},
+		})
 
-		SetProperty(existing, sel.(PropertyKey), rhs)
+		SetProperty(existing, sel.(PropertyKey), newValue.Value)
 	}
 
 	return &Void{}

@@ -23,6 +23,7 @@ type (
 
 	OperatorStmt struct {
 		Async     token.Pos
+		Memo      token.Pos
 		Operator  token.Pos
 		Receiver  *Ident
 		TokPos    token.Pos

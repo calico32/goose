@@ -89,6 +89,10 @@ func (p *Parser) parseOperatorStmt() *ast.OperatorStmt {
 		stmt.Async = p.pos
 		p.next()
 	}
+	if p.tok == token.Memo {
+		stmt.Memo = p.pos
+		p.next()
+	}
 	stmt.Operator = p.expect(token.Operator)
 	stmt.Receiver = p.parseIdent()
 
