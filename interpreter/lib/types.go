@@ -349,11 +349,27 @@ func GetProperty(v Value, key PropertyKey) Value {
 }
 
 func SetProperty(v Value, key PropertyKey, val Value) error {
+	if a, ok := v.(*Array); ok {
+		index, ok := key.(*Integer)
+		if !ok {
+			return fmt.Errorf("cannot use %s as an index", key.Type())
+		}
+
+		if index.Value.Cmp(big.NewInt(0)) == -1 || index.Value.Cmp(big.NewInt(int64(len(a.Elements)))) >= 0 {
+			return fmt.Errorf("index %s out of range", index.Value.Text(10))
+		}
+
+		a.Elements[index.Value.Int64()] = val
+		return nil
+	}
 	var c *Composite
 	if comp, ok := v.(*Composite); ok {
 		c = comp
 	} else {
 		c = v.Prototype()
+	}
+	if c.Properties[key.kind()] == nil {
+		c.Properties[key.kind()] = make(map[string]Value)
 	}
 	c.Properties[key.kind()][key.CanonicalValue()] = val
 	return nil
@@ -378,6 +394,9 @@ func GetOperator(v Value, tok token.Token) *OperatorFunc {
 		token.Neq: func(ctx *FuncContext) *Return {
 			eq := GetOperator(ctx.Args[0], token.Eq).Executor(ctx)
 			return NewReturn(!eq.Value.(*Bool).Value)
+		},
+		token.Assign: func(ctx *FuncContext) *Return {
+			return &Return{ctx.Args[0]}
 		},
 	}
 

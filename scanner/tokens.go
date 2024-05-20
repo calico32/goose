@@ -115,6 +115,10 @@ var tokenTable = tokens{
 	'!': tokens{
 		0:   token.LogNot,
 		'=': token.Neq,
+		'i': tokens{
+			0:   token.Illegal,
+			's': token.IsNot,
+		},
 	},
 	'<': tokens{
 		0:   token.Lt,

@@ -7,6 +7,8 @@ import (
 	"github.com/calico32/goose/token"
 )
 
+var BuiltinSingletons = map[*Composite]Value{}
+
 var Object = &Composite{
 	Name:   "Object",
 	Frozen: true,
@@ -117,6 +119,12 @@ var Object = &Composite{
 		token.Is: OpFunc(func(c *OpContext[Value, Value]) Value {
 			p1 := c.This.Prototype()
 			p2 := c.Other
+
+			// for primitives, check against their builtin singletons
+			if singleton, ok := BuiltinSingletons[p1]; ok && p2 == singleton {
+				return TrueValue
+			}
+
 			for p2 != nil {
 				if p1 == p2 {
 					return TrueValue
@@ -136,6 +144,28 @@ var Object = &Composite{
 			}
 
 			return FalseValue
+		}),
+		token.IsNot: OpFunc(func(c *OpContext[Value, Value]) Value {
+			p1 := c.This.Prototype()
+			p2 := c.Other
+			for p2 != nil {
+				if p1 == p2 {
+					return FalseValue
+				}
+				switch x := p2.(type) {
+				case *Func:
+					p2 = x.NewableProto
+				case *Composite:
+					if x == nil {
+						return TrueValue
+					}
+					p2 = x.Prototype()
+				default:
+					p2 = p2.Prototype()
+				}
+			}
+
+			return TrueValue
 		}),
 	},
 }

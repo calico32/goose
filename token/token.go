@@ -71,6 +71,8 @@ const (
 	BitXorAssign
 	BitShlAssign
 	BitShrAssign
+	Is
+	IsNot
 	LParen
 	RParen
 	LBracket
@@ -130,7 +132,6 @@ const (
 	Match
 	When
 	Frozen
-	Is
 	KeywordEnd
 
 	None
@@ -194,6 +195,8 @@ var tokens = [...]string{
 	BitXorAssign:  "^=",
 	BitShlAssign:  "<<=",
 	BitShrAssign:  ">>=",
+	Is:            "is",
+	IsNot:         "!is",
 
 	LParen:       "(",
 	RParen:       ")",
@@ -252,7 +255,6 @@ var tokens = [...]string{
 	Match:     "match",
 	When:      "when",
 	Frozen:    "frozen",
-	Is:        "is",
 }
 
 func (tok Token) String() string {
@@ -276,13 +278,13 @@ func (tok Token) Precedence() int {
 	switch tok {
 	case Arrow:
 		return 1
-	case Is:
-		return 2
 	case LogNull:
-		return 3
+		return 2
 	case LogOr:
-		return 4
+		return 3
 	case LogAnd:
+		return 4
+	case Is, IsNot:
 		return 5
 	case BitOr:
 		return 6
@@ -309,6 +311,8 @@ func init() {
 	for i := KeywordStart + 1; i < KeywordEnd; i++ {
 		keywords[tokens[i]] = i
 	}
+	// "is" is an operator, but needs to be parsed through the keyword lookup
+	keywords[tokens[Is]] = Is
 }
 
 func Lookup(ident string) Token {
