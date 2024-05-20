@@ -361,6 +361,8 @@ func (v *Validator) checkReturnStmt(scope *Scope, stmt *ast.ReturnStmt) StmtResu
 		v.Report(protocol.DiagnosticSeverityError, stmt, "return outside of function")
 	}
 
+	v.checkExpr(scope, stmt.Result)
+
 	return &Return{}
 }
 
@@ -891,10 +893,26 @@ func (v *Validator) checkExpr(scope *Scope, expr ast.Expr) Value {
 		return v.checkNativeExpr(scope, expr)
 	case *ast.RangeExpr:
 		return v.checkRangeExpr(scope, expr)
+	case *ast.ArrayInitializer:
+		return v.checkArrayInitializer(scope, expr)
 	default:
 		fmt.Fprintf(os.Stderr, "unhandled expression type: %T\n", expr)
 		return nil
 	}
+}
+
+func (v *Validator) checkArrayInitializer(scope *Scope, expr *ast.ArrayInitializer) Value {
+	defer pop(push(v, expr))
+
+	newScope := scope.Fork(ScopeOwnerArrayInit)
+	newScope.Set("_", &Variable{
+		Constant: true,
+	})
+	v.checkExpr(newScope, expr.Value)
+
+	v.checkExpr(scope, expr.Count)
+
+	return nil
 }
 
 func (v *Validator) checkRangeExpr(scope *Scope, expr *ast.RangeExpr) Value {
@@ -902,7 +920,9 @@ func (v *Validator) checkRangeExpr(scope *Scope, expr *ast.RangeExpr) Value {
 
 	v.checkExpr(scope, expr.Start)
 	v.checkExpr(scope, expr.Stop)
-	v.checkExpr(scope, expr.Step)
+	if expr.Step != nil {
+		v.checkExpr(scope, expr.Step)
+	}
 
 	return nil
 }
