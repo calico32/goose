@@ -181,13 +181,17 @@ func (g *Generator) Unwrap() any  { return g }
 func (r *IntRange) Unwrap() any   { return r }
 func (r *FloatRange) Unwrap() any { return r }
 
-func (n *Null) Clone() Value    { return n }
-func (i *Integer) Clone() Value { return i }
-func (f *Float) Clone() Value   { return f }
-func (s *Symbol) Clone() Value  { return s }
-func (b *Bool) Clone() Value    { return b }
-func (s *String) Clone() Value  { return s }
-func (a *Array) Clone() Value   { return a }
+func (n *Null) Clone() Value { return n }
+func (i *Integer) Clone() Value {
+	v := new(big.Int)
+	v.Set(i.Value)
+	return &Integer{Value: v}
+}
+func (f *Float) Clone() Value  { return f }
+func (s *Symbol) Clone() Value { return s }
+func (b *Bool) Clone() Value   { return b }
+func (s *String) Clone() Value { return s }
+func (a *Array) Clone() Value  { return a }
 func (c *Composite) Clone() Value {
 	return &Composite{
 		Proto:      c.Proto,

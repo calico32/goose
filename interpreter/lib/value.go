@@ -29,7 +29,8 @@ func Wrap(value any) Value {
 	case int64:
 		return &Integer{big.NewInt(value)}
 	case *big.Int:
-		return &Integer{value}
+		i := &Integer{value}
+		return i.Clone()
 	case float64:
 		return &Float{value}
 	case rune:
@@ -49,6 +50,12 @@ func Wrap(value any) Value {
 		}
 		return &Array{Elements: vals}
 	case []int64:
+		vals := make([]Value, len(value))
+		for i, v := range value {
+			vals[i] = Wrap(v)
+		}
+		return &Array{Elements: vals}
+	case []*big.Int:
 		vals := make([]Value, len(value))
 		for i, v := range value {
 			vals[i] = Wrap(v)
