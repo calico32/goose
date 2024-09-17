@@ -246,10 +246,36 @@ func (v *Validator) checkStmt(scope *Scope, stmt ast.Stmt) StmtResult {
 		return v.checkIncDecStmt(scope, stmt)
 	case *ast.OperatorStmt:
 		return v.checkOperatorStmt(scope, stmt)
+	case *ast.TryStmt:
+		return v.checkTryStmt(scope, stmt)
 	default:
 		fmt.Fprintf(os.Stderr, "unhandled statement type: %T\n", stmt)
 		return &Void{}
 	}
+}
+
+func (v *Validator) checkTryStmt(scope *Scope, stmt *ast.TryStmt) StmtResult {
+	defer pop(push(v, stmt))
+
+	newScope := scope.Fork(ScopeOwnerBlock)
+	v.checkStmts(newScope, stmt.Body)
+
+	if stmt.Catch != nil {
+		catchScope := scope.Fork(ScopeOwnerBlock)
+		if stmt.Catch.Ident != nil {
+			catchScope.Set(stmt.Catch.Ident.Name, &Variable{
+				Constant: false,
+			})
+		}
+		v.checkStmts(catchScope, stmt.Catch.Body)
+	}
+
+	if stmt.Finally != nil {
+		newScope := scope.Fork(ScopeOwnerBlock)
+		v.checkStmts(newScope, stmt.Finally.Body)
+	}
+
+	return &Void{}
 }
 
 func (v *Validator) checkOperatorStmt(scope *Scope, stmt *ast.OperatorStmt) StmtResult {
@@ -1281,6 +1307,8 @@ func (v *Validator) checkAssignStmt(scope *Scope, stmt *ast.AssignStmt) StmtResu
 		v.checkExpr(scope, lhs.Sel)
 		v.checkPropertyKey(lhs.Sel)
 		v.checkExpr(scope, stmt.Rhs)
+	default:
+		v.Report(protocol.DiagnosticSeverityError, lhs, "invalid assignment target")
 	}
 
 	return &Void{}
