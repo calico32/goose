@@ -13,6 +13,9 @@ var StringPrototype = &Composite{
 	Frozen: true,
 	Properties: Properties{
 		PKString: {
+			"toDebugString": &Func{Executor: func(ctx *FuncContext) *Return {
+				return NewReturn(NewString(fmt.Sprintf("\"%s\"", ctx.This.(*String).Value)))
+			}},
 			"toString": &Func{Executor: func(ctx *FuncContext) *Return {
 				return NewReturn(&ctx.This)
 			}},

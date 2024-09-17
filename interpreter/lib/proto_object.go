@@ -76,24 +76,24 @@ var Object = &Composite{
 		token.LogNot: OpFunc(func(c *OpContext[Value, Value]) Value {
 			return BoolFrom[!IsTruthy(c.This)]
 		}),
-		token.Question: OpFunc(func(c *OpContext[Value, Value]) Value {
-			prop := GetProperty(c.This, NewString("toString"))
-			if prop == nil {
-				return &String{"<unknown>"}
-			}
+		// token.Question: OpFunc(func(c *OpContext[Value, Value]) Value {
+		// 	prop := GetProperty(c.This, NewString("toString"))
+		// 	if prop == nil {
+		// 		return &String{"<unknown>"}
+		// 	}
 
-			if _, ok := prop.(*Func); !ok {
-				return &String{"<object Func>"}
-			}
+		// 	if _, ok := prop.(*Func); !ok {
+		// 		return &String{"<object Func>"}
+		// 	}
 
-			ret := prop.(*Func).Executor(&FuncContext{
-				Interp: c.Interp,
-				Scope:  c.Scope,
-				This:   c.This,
-			})
+		// 	ret := prop.(*Func).Executor(&FuncContext{
+		// 		Interp: c.Interp,
+		// 		Scope:  c.Scope,
+		// 		This:   c.This,
+		// 	})
 
-			return ret.Value
-		}),
+		// 	return ret.Value
+		// }),
 		token.LogAnd: OpFunc(func(c *OpContext[Value, Value]) Value {
 			if IsTruthy(c.This) {
 				return c.Other

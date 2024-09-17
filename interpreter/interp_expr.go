@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/calico32/goose/ast"
 	"github.com/calico32/goose/token"
@@ -109,13 +110,25 @@ func (i *interp) evalUnaryExpr(scope *Scope, expr *ast.UnaryExpr) Value {
 	case token.LogNot:
 		return Wrap(!IsTruthy(value))
 	case token.Question:
+		var e ast.Expr = expr
 		if paren, ok := expr.X.(*ast.ParenExpr); ok {
-			fmt.Println(PrintExpr(paren.X) + " = " + ToDebugString(i, scope, value, 0))
-			return value
-		} else {
-			fmt.Println(PrintExpr(expr.X) + " = " + ToDebugString(i, scope, value, 0))
-			return value
+			e = paren.X
 		}
+		q := NewQuestionContext(i, scope, value)
+		op := GetOperator(value, token.Question)
+		if op != nil {
+			op.Executor(&FuncContext{
+				Interp: i,
+				Scope:  scope,
+				This:   value,
+				Args:   []Value{q},
+			})
+			prefix := PrintExpr(e) + " = "
+			fmt.Println(prefix + q.String(len(prefix)))
+		} else {
+			fmt.Println(PrintExpr(e) + " = " + ToDebugString(i, scope, value, 0))
+		}
+		return value
 	case token.LogNull, token.Add, token.Sub, token.BitNot:
 		op := GetOperator(value, expr.Op)
 		if op == nil {
@@ -141,4 +154,71 @@ func (i *interp) evalFrozenExpr(scope *Scope, expr *ast.FrozenExpr) Value {
 	e := i.evalExpr(scope, expr.X)
 	e.Freeze()
 	return e
+}
+
+type QuestionContext struct {
+	*Composite
+	sb *strings.Builder
+}
+
+func (q *QuestionContext) String(indent int) string {
+	lines := strings.Split(q.sb.String(), "\n")
+	for i, line := range lines {
+		if i == 0 {
+			continue
+		}
+		lines[i] = strings.Repeat(" ", indent) + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+func NewQuestionContext(i *interp, scope *Scope, value Value) *QuestionContext {
+	var sb strings.Builder
+	return &QuestionContext{
+		sb: &sb,
+		Composite: &Composite{
+			Frozen: true,
+			Properties: Properties{
+				PKString: map[string]Value{
+					"println": &Func{Executor: func(ctx *FuncContext) *Return {
+						for index, arg := range ctx.Args {
+							sb.WriteString(ToString(i, scope, arg))
+							if index != len(ctx.Args)-1 {
+								sb.WriteString(" ")
+							}
+						}
+						sb.WriteString("\n")
+						return &Return{}
+					}},
+					"print": &Func{Executor: func(ctx *FuncContext) *Return {
+						for index, arg := range ctx.Args {
+							sb.WriteString(ToString(i, scope, arg))
+							if index != len(ctx.Args)-1 {
+								sb.WriteString(" ")
+							}
+						}
+						return &Return{}
+					}},
+					"printf": &Func{Executor: func(ctx *FuncContext) *Return {
+						if len(ctx.Args) < 1 {
+							i.Throw("printf(format, ...): expected at least 1 argument")
+						}
+
+						if _, ok := ctx.Args[0].(*String); !ok {
+							i.Throw("printf(format, ...): expected string as first argument")
+						}
+
+						format := ctx.Args[0].(*String).Value
+						args := []any{}
+						for _, arg := range ctx.Args[1:] {
+							args = append(args, arg.Unwrap())
+						}
+
+						sb.WriteString(fmt.Sprintf(format, args...))
+						return &Return{}
+					}},
+				},
+			},
+		},
+	}
 }
