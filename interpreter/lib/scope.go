@@ -168,18 +168,17 @@ func (s *Scope) GetValue(name string) Value {
 	return s.Get(name).Value
 }
 
-func (s *Scope) Set(name string, value *Variable) {
+func (s *Scope) Set(name string, value *Variable) error {
 	if s.Builtins().IsDefined(name) {
-		panic(fmt.Errorf("cannot redefine builtin %s", name))
+		return fmt.Errorf("cannot redefine builtin %s", name)
 	}
 
-	if v, ok := s.idents[name]; ok {
-		if v.Constant {
-			panic(fmt.Errorf("cannot assign to constant %s", name))
-		}
+	if _, ok := s.idents[name]; ok {
+		return fmt.Errorf("%s is already defined", name)
 	}
 
 	s.idents[name] = value
+	return nil
 }
 
 func (s *Scope) Update(name string, value Value) {
