@@ -179,6 +179,14 @@ var StringBuiltin = &Composite{
 	Proto:      nil,
 	Frozen:     true,
 	Properties: Properties{},
+	CallableFn: &Func{Executor: func(ctx *FuncContext) *Return {
+		if len(ctx.Args) < 1 {
+			ctx.Interp.Throw("string(x): expected at least 1 argument")
+			return &Return{}
+		}
+
+		return NewReturn(NewString(ToString(ctx.Interp, ctx.Scope, ctx.Args[0])))
+	}},
 }
 
 var BoolBuiltin = &Composite{

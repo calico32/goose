@@ -152,24 +152,29 @@ func (i *interp) evalCallExpr(scope *Scope, expr *ast.CallExpr) Value {
 	defer un(trace(i, "call expr"))
 
 	var this Value
-	var fn Value
+	var callable Value
 	switch fexpr := expr.Func.(type) {
 	case *ast.SelectorExpr:
 		this = i.evalExpr(scope, fexpr.X)
-		fn = GetProperty(this, NewString(fexpr.Sel.Name)) // TODO: check type
+		callable = GetProperty(this, NewString(fexpr.Sel.Name)) // TODO: check type
 	case *ast.BracketSelectorExpr:
 		this = i.evalExpr(scope, fexpr.X)
 		sel := i.evalExpr(scope, fexpr.Sel)
-		fn = GetProperty(this, sel.(PropertyKey)) // TODO: check type
+		callable = GetProperty(this, sel.(PropertyKey)) // TODO: check type
 	default:
-		fn = i.evalExpr(scope, expr.Func)
-		if f, ok := fn.(*Func); ok && f.This != nil {
+		callable = i.evalExpr(scope, expr.Func)
+		if f, ok := callable.(*Func); ok && f.This != nil {
 			this = f.This
 		}
 	}
 
-	if _, ok := fn.(*Func); !ok {
-		i.Throw("expression of type %s is not callable", fn.Type())
+	fn := callable.Callable()
+	if this == nil {
+		this = fn.This
+	}
+
+	if fn == nil {
+		i.Throw("cannot call value of type %s", callable.Type())
 	}
 
 	args := make([]Value, len(expr.Args))
@@ -179,7 +184,7 @@ func (i *interp) evalCallExpr(scope *Scope, expr *ast.CallExpr) Value {
 		args[idx] = val
 	}
 
-	result := fn.(*Func).Executor(&FuncContext{
+	result := fn.Executor(&FuncContext{
 		Interp: i,
 		Scope:  scope,
 		This:   this,

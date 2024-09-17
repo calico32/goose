@@ -82,11 +82,13 @@ func ToString(i Interpreter, scope *Scope, v Value) string {
 		return "<unknown>"
 	}
 
-	if _, ok := prop.(*Func); !ok {
+	callable := prop.Callable()
+
+	if callable == nil {
 		return "<unknown>"
 	}
 
-	ret := prop.(*Func).Executor(&FuncContext{
+	ret := callable.Executor(&FuncContext{
 		Interp: i,
 		Scope:  scope,
 		This:   v,

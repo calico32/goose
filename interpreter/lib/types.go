@@ -18,6 +18,7 @@ type Value interface {
 	Freeze()
 	Unfreeze()
 	Hash() string
+	Callable() *Func
 }
 
 type FuncContext struct {
@@ -77,8 +78,7 @@ type (
 		Name string
 		Id   int64
 	}
-	Bool struct{ Value bool }
-
+	Bool   struct{ Value bool }
 	String struct {
 		Value string
 	}
@@ -92,6 +92,7 @@ type (
 		Properties Properties
 		Operators  Operators
 		Frozen     bool
+		CallableFn *Func
 	}
 	Func struct {
 		Executor     FuncType
@@ -264,6 +265,19 @@ func (g *Generator) Unfreeze() {
 func (r *IntRange) Unfreeze()   {}
 func (r *FloatRange) Unfreeze() {}
 
+func (*Null) Callable() *Func        { return nil }
+func (*Integer) Callable() *Func     { return nil }
+func (*Float) Callable() *Func       { return nil }
+func (*Symbol) Callable() *Func      { return nil }
+func (*Bool) Callable() *Func        { return nil }
+func (*String) Callable() *Func      { return nil }
+func (*Array) Callable() *Func       { return nil }
+func (c *Composite) Callable() *Func { return c.CallableFn }
+func (f *Func) Callable() *Func      { return f }
+func (*Generator) Callable() *Func   { return nil }
+func (*IntRange) Callable() *Func    { return nil }
+func (*FloatRange) Callable() *Func  { return nil }
+
 func (*Integer) numeric() {}
 func (*Float) numeric()   {}
 
@@ -323,9 +337,9 @@ func (r *FloatRange) Contains(f *Float) bool {
 }
 
 func GetProperty(v Value, key PropertyKey) Value {
-	array, ok1 := v.(*Array)
-	index, ok2 := key.(*Integer)
-	if ok1 && ok2 {
+	array, isArray := v.(*Array)
+	index, keyIsInteger := key.(*Integer)
+	if isArray && keyIsInteger {
 		if index.Value.Cmp(big.NewInt(0)) == -1 || index.Value.Cmp(big.NewInt(int64(len(array.Elements)))) >= 0 {
 			return NullValue
 		}
