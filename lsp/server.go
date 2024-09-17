@@ -299,6 +299,11 @@ func (ls *LanguageServer) DidOpen(ctx context.Context, params *DidOpenTextDocume
 		return
 	}
 
+	urlParts := strings.Split(string(params.TextDocument.URI), "://")
+	if urlParts[0] != "file" {
+		ls.logger.Sugar().Errorf("ignoring document with scheme %s", urlParts[0])
+	}
+
 	ls.sourceFiles[params.TextDocument.URI] = &Mutexed[[]byte]{
 		v: []byte(params.TextDocument.Text),
 	}
