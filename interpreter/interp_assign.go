@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"math/big"
 	"math/rand"
 
 	"github.com/calico32/goose/ast"
@@ -137,7 +138,24 @@ func (i *interp) runAssignStmt(scope *Scope, stmt *ast.AssignStmt) StmtResult {
 			i.Throw("cannot assign to property %s of type %s", lhs.Sel.Name, existing.Type())
 		}
 
-		selected := GetProperty(existing, NewString(sel))
+		allDigits := true
+		for _, c := range sel {
+			if c < '0' || c > '9' {
+				allDigits = false
+				break
+			}
+		}
+
+		var pkey PropertyKey
+		if allDigits {
+			x := new(big.Int)
+			x.SetString(sel, 10)
+			pkey = NewInteger(x)
+		} else {
+			pkey = NewString(sel)
+		}
+
+		selected := GetProperty(existing, pkey)
 		op := GetOperator(selected, stmt.Tok)
 		if op == nil {
 			i.Throw("operator %s not defined for type %s", stmt.Tok, existing.Type())
@@ -150,7 +168,7 @@ func (i *interp) runAssignStmt(scope *Scope, stmt *ast.AssignStmt) StmtResult {
 			Args:   []Value{rhs},
 		})
 
-		SetProperty(existing, NewString(sel), newValue.Value)
+		SetProperty(existing, pkey, newValue.Value)
 	case *ast.BracketSelectorExpr:
 		existing := i.evalExpr(scope, lhs.X)
 
@@ -185,6 +203,8 @@ func (i *interp) runAssignStmt(scope *Scope, stmt *ast.AssignStmt) StmtResult {
 		})
 
 		SetProperty(existing, sel.(PropertyKey), newValue.Value)
+	default:
+		i.Throw("invalid assignment target")
 	}
 
 	return &Void{}
